@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { fetchActivePlayers } from '../api/players'
-import { calcFantasyScore } from '../utils/scoring'
+import { calcFantasyScore, calcOffenseRating, calcDefenseRating } from '../utils/scoring'
 import { assignTiers } from '../utils/tiers'
 
-const CACHE_KEY = 'fbball_players_cache'
+const CACHE_KEY = 'fbball_players_cache_v3' // bumped to include fga/fta/fgm for advanced ratings
 const CACHE_TTL = 1000 * 60 * 60 // 1 hour
 
 export function usePlayers() {
@@ -31,12 +31,13 @@ export function usePlayers() {
 
         const withScores = raw.map(player => ({
           ...player,
-          fantasyScore: calcFantasyScore(player.avg),
+          fantasyScore:   calcFantasyScore(player.avg),   // internal — tier assignment only
+          offenseRating:  calcOffenseRating(player.avg),  // shown in UI
+          defenseRating:  calcDefenseRating(player.avg),  // shown in UI
         }))
 
         const tiered = assignTiers(withScores)
 
-        // Cache result
         sessionStorage.setItem(CACHE_KEY, JSON.stringify({
           data: tiered,
           timestamp: Date.now(),

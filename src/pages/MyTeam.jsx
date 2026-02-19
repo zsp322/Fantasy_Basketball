@@ -3,161 +3,208 @@ import CourtView from '../components/CourtView'
 import SwapDrawer from '../components/SwapDrawer'
 import PlayerAvatar from '../components/PlayerAvatar'
 import TierBadge from '../components/TierBadge'
+import PlayerStatsPopup from '../components/PlayerStatsPopup'
 import { SALARY_CAP } from '../utils/teamSetup'
+import { useStarters, POS_ORDER } from '../hooks/useStarters'
+import { useSettings } from '../contexts/SettingsContext'
+import { T, t } from '../data/i18n'
+import { getPlayerShortName } from '../data/playerNames'
 
-const POS_ORDER = ['PG', 'SG', 'SF', 'PF', 'C']
-
-function useStarters(roster) {
-  const [starters, setStarters] = useState(() => {
-    const map = {}
-    for (const pos of POS_ORDER) {
-      const match = roster.find(p =>
-        p.position === pos && !Object.values(map).find(s => s?.id === p.id)
-      )
-      map[pos] = match ?? null
-    }
-    return map
-  })
-
-  function assign(pos, player) {
-    setStarters(prev => {
-      const next = { ...prev }
-      for (const k of Object.keys(next)) {
-        if (next[k]?.id === player.id) next[k] = null
-      }
-      next[pos] = player
-      return next
-    })
-  }
-
-  function remove(pos) {
-    setStarters(prev => ({ ...prev, [pos]: null }))
-  }
-
-  return { starters, assign, remove }
+function getTierBorderClass(tierName) {
+  if (!tierName) return 'border-gray-700'
+  if (['S+', 'S', 'S-'].includes(tierName)) return 'border-purple-400'
+  if (['A+', 'A', 'A-'].includes(tierName)) return 'border-blue-400'
+  if (['B+', 'B', 'B-'].includes(tierName)) return 'border-cyan-400'
+  if (['C+', 'C', 'C-'].includes(tierName)) return 'border-green-400'
+  return 'border-gray-600'
 }
 
-function CapBar({ used, cap }) {
-  const pct = Math.min((used / cap) * 100, 100)
-  const color = pct > 90 ? 'bg-red-500' : pct > 70 ? 'bg-yellow-400' : 'bg-green-500'
-  return (
-    <div className="w-full bg-gray-800 rounded-full h-1.5">
-      <div className={`${color} h-1.5 rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
-    </div>
-  )
-}
-
-function BenchCard({ player, onDrop }) {
+function BenchChip({ player, onDrop, lang = 'zh' }) {
   const [confirming, setConfirming] = useState(false)
-  const stat = (val) => val != null ? Number(val).toFixed(1) : '—'
+  const tierName = player.tier?.name
+  const ringClass = getTierBorderClass(tierName)
+
   return (
-    <div className="bg-gray-900/80 border border-gray-800 rounded-xl p-3 flex items-center gap-3">
-      <PlayerAvatar player={player} size="sm" />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-white font-semibold text-sm truncate">{player.first_name} {player.last_name}</span>
-          {player.status === 'Out' && <span className="text-red-400 text-xs font-bold">OUT</span>}
-          {player.status === 'Day-To-Day' && <span className="text-orange-400 text-xs font-bold">DTD</span>}
-          {player.status === 'Questionable' && <span className="text-yellow-400 text-xs font-bold">Q</span>}
-        </div>
-        <div className="text-gray-400 text-xs mt-0.5">
-          {player.avg?.teamAbbr ?? '—'} · {player.position || '—'} ·{' '}
-          <span className="text-orange-300">{stat(player.avg?.pts)}</span> / {stat(player.avg?.reb)} / {stat(player.avg?.ast)}
-        </div>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <TierBadge tier={player.tier} size="sm" />
-        <span className="text-green-400 text-xs font-bold">${player.tier?.salary}M</span>
-        {confirming ? (
-          <div className="flex gap-1">
-            <button onClick={() => onDrop(player.id)} className="text-xs bg-red-700 hover:bg-red-600 text-white px-2 py-1 rounded-lg">Drop</button>
-            <button onClick={() => setConfirming(false)} className="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded-lg">✕</button>
+    <div className="relative flex-shrink-0 group">
+      <div className="flex flex-col items-center gap-0.5">
+        {/* Photo */}
+        <div
+          className={`relative rounded-lg border-2 ${ringClass} overflow-hidden bg-gray-900`}
+          style={{ width: 48, height: 48 }}
+        >
+          {player.headshot ? (
+            <img
+              src={player.headshot}
+              alt={player.last_name}
+              className="w-full h-full object-cover object-top"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-white text-xs font-bold">
+              {player.first_name?.[0]}{player.last_name?.[0]}
+            </div>
+          )}
+          {/* Tier badge */}
+          <div
+            className={`absolute bottom-0 right-0 text-black font-bold px-0.5 rounded-tl ${player.tier?.color ?? 'bg-gray-400'}`}
+            style={{ fontSize: '0.45rem', lineHeight: '1.4' }}
+          >
+            {tierName}
           </div>
-        ) : (
-          <button onClick={() => setConfirming(true)} className="text-xs text-gray-600 hover:text-red-400 px-1 py-1 transition-colors">Drop</button>
-        )}
+        </div>
+
+        {/* Name */}
+        <div className="text-white font-semibold truncate text-center" style={{ fontSize: 10, maxWidth: 52 }}>
+          {getPlayerShortName(player, lang)}
+        </div>
+        <div className="text-gray-500 text-center" style={{ fontSize: 9 }}>
+          {player.position}
+        </div>
       </div>
+
+      {/* Drop button on hover */}
+      {confirming ? (
+        <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-1 z-20 whitespace-nowrap">
+          <button
+            onClick={() => onDrop(player.id)}
+            className="bg-red-700 hover:bg-red-600 text-white text-xs px-2 py-0.5 rounded"
+          >
+            {t(T.myTeam.dropConfirm, lang)}
+          </button>
+          <button
+            onClick={() => setConfirming(false)}
+            className="bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => setConfirming(true)}
+          className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 hover:bg-red-900 border border-gray-600 hover:border-red-700 rounded-full text-gray-500 hover:text-red-400 text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+        >
+          ×
+        </button>
+      )}
     </div>
   )
 }
 
 export default function MyTeam({ team }) {
+  const { lang } = useSettings()
   const { team: roster, totalSalary, capRemaining, cash, dropPlayer, resetTeam } = team
   const { starters, assign, remove } = useStarters(roster)
   const [drawer, setDrawer] = useState(null)
-  const [tab, setTab] = useState('court')
+  const [hoverState, setHoverState] = useState(null) // { player, rect }
 
   const starterIds = Object.values(starters).filter(Boolean).map(p => p.id)
   const bench = roster.filter(p => !starterIds.includes(p.id))
   const starterCount = Object.values(starters).filter(Boolean).length
+  const capPct = Math.min((totalSalary / SALARY_CAP) * 100, 100)
+  const capColor = capPct > 90 ? '#ef4444' : capPct > 70 ? '#facc15' : '#22c55e'
 
   return (
-    <div className="h-full flex flex-col text-white" style={{
-      background: 'radial-gradient(ellipse at 50% 0%, rgba(120,53,15,0.5) 0%, rgba(3,7,18,1) 55%)',
-    }}>
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
-        <div>
-          <h1 className="text-lg font-bold leading-tight">My Team</h1>
-          <p className="text-gray-400 text-xs">{starterCount}/5 starters · {roster.length}/15 roster</p>
+    <div className="relative h-full overflow-hidden text-white">
+
+      {/* Full-screen arena court as background */}
+      <CourtView
+        starters={starters}
+        onSlotClick={(pos, player) => setDrawer({ pos, player })}
+        onHoverPlayer={(player, rect) => setHoverState(player ? { player, rect } : null)}
+      />
+
+      {/* Player stats popup (portal — renders outside overflow-hidden) */}
+      {hoverState && (
+        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} />
+      )}
+
+      {/* ── Top-left: team info panel ── */}
+      <div
+        className="absolute top-3 left-3 z-20 flex flex-col gap-2"
+        style={{ width: 'clamp(140px, 14vw, 190px)' }}
+      >
+        <div className="bg-black/75 backdrop-blur-sm border border-gray-700/60 rounded-xl p-3">
+          {/* Title */}
+          <div className="text-orange-400 font-bold text-sm mb-3 tracking-wide">
+            范特西篮球
+          </div>
+
+          {/* Cash */}
+          <div className="flex justify-between items-center mb-1.5">
+            <span className="text-gray-400 text-xs">{t(T.myTeam.cash, lang)}</span>
+            <span className="text-green-400 font-bold text-sm">${cash}M</span>
+          </div>
+
+          {/* Cap Space */}
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-gray-400 text-xs">{t(T.myTeam.capSpace, lang)}</span>
+            <span
+              className="font-bold text-sm"
+              style={{ color: capRemaining < 10 ? '#ef4444' : '#60a5fa' }}
+            >
+              ${capRemaining}M
+            </span>
+          </div>
+
+          {/* Cap bar */}
+          <div className="w-full bg-gray-800 rounded-full h-1 mb-1">
+            <div
+              className="h-1 rounded-full transition-all duration-500"
+              style={{ width: `${capPct}%`, background: capColor }}
+            />
+          </div>
+          <div className="flex justify-between text-gray-600" style={{ fontSize: 10 }}>
+            <span>${totalSalary}M used</span>
+            <span>{capPct.toFixed(0)}%</span>
+          </div>
+
+          {/* Roster count */}
+          <div className="mt-2 pt-2 border-t border-gray-800 text-gray-500 text-xs">
+            {t(T.myTeam.starterCount, lang, starterCount, roster.length)}
+          </div>
         </div>
+      </div>
+
+      {/* ── Top-right: reset button ── */}
+      <div className="absolute top-3 right-3 z-20">
         <button
-          onClick={() => { if (window.confirm('Reset your team and start over?')) resetTeam() }}
-          className="text-xs text-gray-600 hover:text-red-400 transition-colors"
+          onClick={() => { if (window.confirm(t(T.myTeam.resetConfirm, lang))) resetTeam() }}
+          className="text-xs text-gray-600 hover:text-red-400 bg-black/60 border border-gray-700/50 px-2.5 py-1.5 rounded-lg transition-colors"
         >
-          Reset
+          {t(T.myTeam.reset, lang)}
         </button>
       </div>
 
-      {/* Cash + Cap */}
-      <div className="grid grid-cols-2 gap-2 px-4 mb-2 shrink-0">
-        <div className="bg-black/40 border border-gray-800 rounded-xl px-3 py-1.5 flex items-center justify-between">
-          <span className="text-gray-400 text-xs">Cash</span>
-          <span className="text-green-400 font-bold text-sm">${cash}M</span>
+      {/* ── Bottom bench strip ── */}
+      <div
+        className="absolute bottom-0 left-0 right-0 z-20"
+        style={{
+          background:
+            'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 60%, transparent 100%)',
+          paddingTop: 24,
+          paddingBottom: 10,
+          paddingLeft: 16,
+          paddingRight: 16,
+        }}
+      >
+        <div className="flex items-center gap-1 mb-2">
+          <span className="text-gray-400 font-semibold uppercase tracking-wider" style={{ fontSize: 10 }}>
+            {t(T.myTeam.bench, lang)}
+          </span>
+          <span className="text-gray-600" style={{ fontSize: 10 }}>({bench.length})</span>
         </div>
-        <div className="bg-black/40 border border-gray-800 rounded-xl px-3 py-1.5 flex items-center justify-between">
-          <span className="text-gray-400 text-xs">Cap Space</span>
-          <span className={`font-bold text-sm ${capRemaining < 10 ? 'text-red-400' : 'text-blue-400'}`}>${capRemaining}M</span>
-        </div>
+
+        {bench.length === 0 ? (
+          <p className="text-gray-600 text-xs pb-1">{t(T.myTeam.allStarting, lang)}</p>
+        ) : (
+          <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+            {bench.map(p => (
+              <BenchChip key={p.id} player={p} onDrop={dropPlayer} lang={lang} />
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-2 px-4 mb-2 shrink-0">
-        {[{ key: 'court', label: '🏀 Court' }, { key: 'bench', label: `Bench (${bench.length})` }].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-1 rounded-lg text-sm font-semibold transition-colors ${
-              tab === t.key ? 'bg-orange-500 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'
-            }`}
-          >{t.label}</button>
-        ))}
-      </div>
-
-      {tab === 'court' && (
-        <div className="flex-1 min-h-0 flex flex-col px-3 pb-2">
-          {/* Court fills all remaining space */}
-          <div className="flex-1 min-h-0">
-            <CourtView starters={starters} onSlotClick={(pos, player) => setDrawer({ pos, player })} />
-          </div>
-          {/* Cap bar pinned at bottom */}
-          <div className="mt-2 bg-black/40 border border-gray-800 rounded-xl px-4 py-2 shrink-0">
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>Salary: <span className="text-white font-semibold">${totalSalary}M</span> / $200M</span>
-              <span>{((totalSalary / SALARY_CAP) * 100).toFixed(0)}% used</span>
-            </div>
-            <CapBar used={totalSalary} cap={SALARY_CAP} />
-          </div>
-        </div>
-      )}
-
-      {tab === 'bench' && (
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 flex flex-col gap-2 pb-4">
-          {bench.length === 0
-            ? <p className="text-gray-500 text-center py-12">All players are starting</p>
-            : bench.map(p => <BenchCard key={p.id} player={p} onDrop={dropPlayer} />)
-          }
-        </div>
-      )}
-
+      {/* SwapDrawer */}
       {drawer && (
         <SwapDrawer
           pos={drawer.pos}

@@ -5,9 +5,11 @@ import Home from './pages/Home'
 import Market from './pages/Market'
 import MyTeam from './pages/MyTeam'
 import League from './pages/League'
+import Simulate from './pages/Simulate'
 import { usePlayers } from './hooks/usePlayers'
 import { useTeam } from './hooks/useTeam'
 import { autoAssignPlayers, getSPlayers } from './utils/teamSetup'
+import { SettingsProvider } from './contexts/SettingsContext'
 
 export default function App() {
   const { players, loading } = usePlayers()
@@ -29,18 +31,21 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
-      <div className="h-screen flex flex-col bg-gray-950 overflow-hidden">
-        <Navbar />
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/market" element={<Market players={players} team={team} />} />
-            <Route path="/team" element={<MyTeam team={team} />} />
-            <Route path="/league" element={<League />} />
-          </Routes>
+    <SettingsProvider>
+      <BrowserRouter>
+        <div className="h-screen flex flex-col overflow-hidden" style={{ background: 'var(--bg-app)' }}>
+          <Navbar />
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/market" element={<Market players={players} team={team} />} />
+              <Route path="/team" element={<MyTeam team={team} />} />
+              <Route path="/league" element={<League />} />
+              <Route path="/simulate" element={<Simulate />} />
+            </Routes>
+          </div>
         </div>
-      </div>
-    </BrowserRouter>
+      </BrowserRouter>
+    </SettingsProvider>
   )
 }

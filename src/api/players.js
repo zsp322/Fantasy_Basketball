@@ -59,7 +59,9 @@ async function fetchAllStats() {
 
     totalPages = json.pagination?.pages ?? 1
 
-    const offIdx = { pts: 0, ast: 10, to: 11, fg3m: 4 }
+    // ESPN offensive category indices:
+    // 0=pts 1=fgm 2=fga 3=fg% 4=fg3m 5=fg3a 6=fg3% 7=ftm 8=fta 9=ft% 10=ast 11=to
+    const offIdx = { pts: 0, fgm: 1, fga: 2, fg3m: 4, fg3a: 5, ftm: 7, fta: 8, ast: 10, to: 11 }
     const defIdx = { stl: 0, blk: 1 }
     const genIdx = { gp: 0, min: 1, reb: 11 }
 
@@ -70,9 +72,14 @@ async function fetchAllStats() {
 
       statsMap[item.athlete.id] = {
         pts:  off[offIdx.pts]  ?? 0,
+        fgm:  off[offIdx.fgm]  ?? 0,
+        fga:  off[offIdx.fga]  ?? 0,
+        fg3m: off[offIdx.fg3m] ?? 0,
+        fg3a: off[offIdx.fg3a] ?? 0,
+        ftm:  off[offIdx.ftm]  ?? 0,
+        fta:  off[offIdx.fta]  ?? 0,
         ast:  off[offIdx.ast]  ?? 0,
         to:   off[offIdx.to]   ?? 0,
-        fg3m: off[offIdx.fg3m] ?? 0,
         stl:  def[defIdx.stl]  ?? 0,
         blk:  def[defIdx.blk]  ?? 0,
         gp:   gen[genIdx.gp]   ?? 0,

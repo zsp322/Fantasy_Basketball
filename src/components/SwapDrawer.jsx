@@ -1,7 +1,10 @@
 import PlayerAvatar from './PlayerAvatar'
 import TierBadge from './TierBadge'
+import { useSettings } from '../contexts/SettingsContext'
+import { getPlayerName } from '../data/playerNames'
 
 export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign, onRemove, onClose }) {
+  const { lang } = useSettings()
   const stat = (val) => val != null ? Number(val).toFixed(1) : '—'
 
   return (
@@ -26,7 +29,7 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
               {pos} Position
             </h3>
             <p className="text-gray-400 text-sm">
-              {currentPlayer ? `Currently: ${currentPlayer.first_name} ${currentPlayer.last_name}` : 'Empty slot — pick a player'}
+              {currentPlayer ? `Currently: ${getPlayerName(currentPlayer, lang)}` : 'Empty slot — pick a player'}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl px-2">✕</button>
@@ -38,7 +41,7 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
             <div className="flex items-center gap-3 bg-gray-900 rounded-xl p-3">
               <PlayerAvatar player={currentPlayer} size="md" />
               <div className="flex-1">
-                <div className="text-white font-semibold">{currentPlayer.first_name} {currentPlayer.last_name}</div>
+                <div className="text-white font-semibold">{getPlayerName(currentPlayer, lang)}</div>
                 <div className="text-gray-400 text-xs">
                   {stat(currentPlayer.avg?.pts)} PTS · {stat(currentPlayer.avg?.reb)} REB · {stat(currentPlayer.avg?.ast)} AST
                 </div>
@@ -69,7 +72,7 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
                 <PlayerAvatar player={player} size="sm" />
                 <div className="flex-1 min-w-0">
                   <div className="text-white font-semibold text-sm truncate">
-                    {player.first_name} {player.last_name}
+                    {getPlayerName(player, lang)}
                   </div>
                   <div className="text-gray-400 text-xs">
                     {player.avg?.teamAbbr ?? '—'} · {player.position || '—'} ·{' '}

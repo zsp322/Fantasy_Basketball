@@ -1,1 +1,90 @@
 @import "tailwindcss";
+
+/* ─── Theme CSS variables ────────────────────────────────────────────────────
+   Dark (default) and light overrides.
+   Components reference these vars for structural backgrounds & borders.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --bg-app:          #030712;                   /* gray-950 */
+  --bg-nav:          #111827;                   /* gray-900 */
+  --bg-nav-border:   #1f2937;                   /* gray-800 */
+  --bg-card:         #111827;
+  --bg-card-inner:   #1f2937;
+  --bg-overlay:      rgba(0, 0, 0, 0.75);
+  --bg-overlay-mid:  rgba(0, 0, 0, 0.45);
+  --bg-hover:        rgba(255, 255, 255, 0.03);
+
+  --text-primary:    #ffffff;
+  --text-secondary:  #9ca3af;                   /* gray-400 */
+  --text-muted:      #6b7280;                   /* gray-500 */
+  --text-faint:      #4b5563;                   /* gray-600 */
+
+  --border:          #374151;                   /* gray-700 */
+  --border-mid:      #1f2937;                   /* gray-800 */
+  --border-light:    rgba(55, 65, 81, 0.6);
+
+  --gradient-simulate: linear-gradient(160deg, #050810 0%, #0a0f1e 50%, #060b14 100%);
+}
+
+html.light-theme {
+  --bg-app:          #f1f5f9;                   /* slate-100 */
+  --bg-nav:          #ffffff;
+  --bg-nav-border:   #e2e8f0;                   /* slate-200 */
+  --bg-card:         #ffffff;
+  --bg-card-inner:   #f8fafc;                   /* slate-50 */
+  --bg-overlay:      rgba(255, 255, 255, 0.88);
+  --bg-overlay-mid:  rgba(255, 255, 255, 0.70);
+  --bg-hover:        rgba(0, 0, 0, 0.025);
+
+  --text-primary:    #0f172a;                   /* slate-900 */
+  --text-secondary:  #475569;                   /* slate-600 */
+  --text-muted:      #64748b;                   /* slate-500 */
+  --text-faint:      #94a3b8;                   /* slate-400 */
+
+  --border:          #cbd5e1;                   /* slate-300 */
+  --border-mid:      #e2e8f0;                   /* slate-200 */
+  --border-light:    rgba(203, 213, 225, 0.8);
+
+  --gradient-simulate: linear-gradient(160deg, #f0f4f8 0%, #e8eef5 50%, #f5f8fc 100%);
+}
+
+/* ─── Light-theme: neutral overrides ─────────────────────────────────────────
+   Flip gray Tailwind classes so all panels/cards look light.
+   Accent colors (orange, yellow, cyan, green, purple) are intentionally kept.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+/* Backgrounds */
+html.light-theme .bg-gray-950  { background-color: #f1f5f9 !important; }
+html.light-theme .bg-gray-900  { background-color: #ffffff !important; }
+html.light-theme .bg-gray-800  { background-color: #f1f5f9 !important; }
+html.light-theme .bg-gray-700  { background-color: #e2e8f0 !important; }
+
+html.light-theme .bg-black\/75 { background-color: rgba(255,255,255,0.88) !important; }
+html.light-theme .bg-black\/60 { background-color: rgba(255,255,255,0.75) !important; }
+html.light-theme .bg-black\/45 { background-color: rgba(255,255,255,0.65) !important; }
+html.light-theme .bg-white\/3  { background-color: rgba(0,0,0,0.025) !important; }
+html.light-theme .bg-white\/5  { background-color: rgba(0,0,0,0.04) !important; }
+
+html.light-theme .bg-gray-800\/70 { background-color: rgba(241,245,249,0.85) !important; }
+html.light-theme .bg-gray-800\/30 { background-color: rgba(241,245,249,0.5) !important; }
+
+/* Borders */
+html.light-theme .border-gray-800    { border-color: #e2e8f0 !important; }
+html.light-theme .border-gray-800\/60 { border-color: rgba(203,213,225,0.7) !important; }
+html.light-theme .border-gray-800\/50 { border-color: rgba(203,213,225,0.6) !important; }
+html.light-theme .border-gray-800\/40 { border-color: rgba(203,213,225,0.5) !important; }
+html.light-theme .border-gray-700\/60 { border-color: rgba(203,213,225,0.8) !important; }
+html.light-theme .border-gray-700    { border-color: #cbd5e1 !important; }
+html.light-theme .border-gray-600    { border-color: #e2e8f0 !important; }
+
+/* Text */
+html.light-theme .text-white   { color: #0f172a !important; }
+html.light-theme .text-gray-400 { color: #64748b !important; }
+html.light-theme .text-gray-500 { color: #94a3b8 !important; }
+html.light-theme .text-gray-600 { color: #94a3b8 !important; }
+html.light-theme .text-gray-700 { color: #cbd5e1 !important; }
+
+/* Scroll bars */
+html.light-theme * {
+  scrollbar-color: #cbd5e1 transparent;
+}
