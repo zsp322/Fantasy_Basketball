@@ -251,6 +251,12 @@ const ZH_SHORT_OVERRIDES = {
   'Brandin Podziemski':        '波德泽姆斯',
 }
 
+/** Returns true if the player has a Chinese name translation. */
+export function hasChineseName(player) {
+  if (!player) return false
+  return (`${player.first_name} ${player.last_name}`) in ZH_NAMES
+}
+
 /**
  * Full display name.
  * English: "FirstName LastName"

@@ -4,11 +4,15 @@ import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerName } from '../data/playerNames'
 
-function formatCountdown(ms) {
-  if (ms <= 0) return 'Refreshing...'
+function formatCountdown(ms, lang = 'en') {
+  if (ms <= 0) return lang === 'zh' ? '刷新中...' : 'Refreshing...'
   const h = Math.floor(ms / 3600000)
   const m = Math.floor((ms % 3600000) / 60000)
   const s = Math.floor((ms % 60000) / 1000)
+  if (lang === 'zh') {
+    if (h > 0) return `${h}小时${m}分`
+    return `${m}分${s}秒`
+  }
   if (h > 0) return `${h}h ${m}m`
   return `${m}m ${s}s`
 }
@@ -380,15 +384,17 @@ export default function Market({ players, team }) {
             <div className="text-gray-600 text-xs">{t(T.market.capSpace, lang)}</div>
           </div>
           <div className="text-center">
-            <div className="text-orange-300 font-bold text-xl leading-tight">{formatCountdown(countdown)}</div>
+            <div className="text-orange-300 font-bold text-xl leading-tight">{formatCountdown(countdown, lang)}</div>
             <div className="text-gray-600 text-xs">{t(T.market.untilRefresh, lang)}</div>
           </div>
-          <button
-            onClick={() => { refreshMarket(teamIds); setCountdown(4 * 60 * 60 * 1000) }}
-            className="bg-gray-900/80 hover:bg-gray-800 border border-gray-700 hover:border-gray-500 text-sm text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-all"
-          >
-            {t(T.market.refreshBtn, lang)}
-          </button>
+          {import.meta.env.DEV && (
+            <button
+              onClick={() => { refreshMarket(teamIds); setCountdown(4 * 60 * 60 * 1000) }}
+              className="bg-gray-900/80 hover:bg-gray-800 border border-gray-700 hover:border-gray-500 text-sm text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-all"
+            >
+              {t(T.market.refreshBtn, lang)}
+            </button>
+          )}
         </div>
       </div>
 
