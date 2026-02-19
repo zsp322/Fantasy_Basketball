@@ -30,14 +30,16 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-950">
+      <div className="h-screen flex flex-col bg-gray-950 overflow-hidden">
         <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/market" element={<Market players={players} team={team} />} />
-          <Route path="/team" element={<MyTeam team={team} />} />
-          <Route path="/league" element={<League />} />
-        </Routes>
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/market" element={<Market players={players} team={team} />} />
+            <Route path="/team" element={<MyTeam team={team} />} />
+            <Route path="/league" element={<League />} />
+          </Routes>
+        </div>
       </div>
     </BrowserRouter>
   )

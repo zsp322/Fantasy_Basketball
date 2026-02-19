@@ -92,13 +92,13 @@ export default function MyTeam({ team }) {
   const starterCount = Object.values(starters).filter(Boolean).length
 
   return (
-    <div className="min-h-screen text-white pb-8" style={{
+    <div className="h-full flex flex-col text-white" style={{
       background: 'radial-gradient(ellipse at 50% 0%, rgba(120,53,15,0.5) 0%, rgba(3,7,18,1) 55%)',
     }}>
       {/* Top bar */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
+      <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
         <div>
-          <h1 className="text-xl font-bold">My Team</h1>
+          <h1 className="text-lg font-bold leading-tight">My Team</h1>
           <p className="text-gray-400 text-xs">{starterCount}/5 starters · {roster.length}/15 roster</p>
         </div>
         <button
@@ -110,22 +110,22 @@ export default function MyTeam({ team }) {
       </div>
 
       {/* Cash + Cap */}
-      <div className="grid grid-cols-2 gap-2 px-4 mb-3">
-        <div className="bg-black/40 border border-gray-800 rounded-xl px-3 py-2 flex items-center justify-between">
+      <div className="grid grid-cols-2 gap-2 px-4 mb-2 shrink-0">
+        <div className="bg-black/40 border border-gray-800 rounded-xl px-3 py-1.5 flex items-center justify-between">
           <span className="text-gray-400 text-xs">Cash</span>
-          <span className="text-green-400 font-bold">${cash}M</span>
+          <span className="text-green-400 font-bold text-sm">${cash}M</span>
         </div>
-        <div className="bg-black/40 border border-gray-800 rounded-xl px-3 py-2 flex items-center justify-between">
+        <div className="bg-black/40 border border-gray-800 rounded-xl px-3 py-1.5 flex items-center justify-between">
           <span className="text-gray-400 text-xs">Cap Space</span>
-          <span className={`font-bold ${capRemaining < 10 ? 'text-red-400' : 'text-blue-400'}`}>${capRemaining}M</span>
+          <span className={`font-bold text-sm ${capRemaining < 10 ? 'text-red-400' : 'text-blue-400'}`}>${capRemaining}M</span>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 px-4 mb-3">
+      <div className="flex gap-2 px-4 mb-2 shrink-0">
         {[{ key: 'court', label: '🏀 Court' }, { key: 'bench', label: `Bench (${bench.length})` }].map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+            className={`px-4 py-1 rounded-lg text-sm font-semibold transition-colors ${
               tab === t.key ? 'bg-orange-500 text-white' : 'bg-gray-900 text-gray-400 hover:text-white'
             }`}
           >{t.label}</button>
@@ -133,21 +133,24 @@ export default function MyTeam({ team }) {
       </div>
 
       {tab === 'court' && (
-        <div className="px-3">
-          <CourtView starters={starters} onSlotClick={(pos, player) => setDrawer({ pos, player })} />
-          <div className="mt-3 bg-black/40 border border-gray-800 rounded-xl px-4 py-3">
-            <div className="flex justify-between text-xs text-gray-400 mb-2">
+        <div className="flex-1 min-h-0 flex flex-col px-3 pb-2">
+          {/* Court fills all remaining space */}
+          <div className="flex-1 min-h-0">
+            <CourtView starters={starters} onSlotClick={(pos, player) => setDrawer({ pos, player })} />
+          </div>
+          {/* Cap bar pinned at bottom */}
+          <div className="mt-2 bg-black/40 border border-gray-800 rounded-xl px-4 py-2 shrink-0">
+            <div className="flex justify-between text-xs text-gray-400 mb-1">
               <span>Salary: <span className="text-white font-semibold">${totalSalary}M</span> / $200M</span>
               <span>{((totalSalary / SALARY_CAP) * 100).toFixed(0)}% used</span>
             </div>
             <CapBar used={totalSalary} cap={SALARY_CAP} />
           </div>
-          <p className="text-center text-gray-600 text-xs mt-3">Tap a position to assign or swap</p>
         </div>
       )}
 
       {tab === 'bench' && (
-        <div className="px-4 flex flex-col gap-2">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 flex flex-col gap-2 pb-4">
           {bench.length === 0
             ? <p className="text-gray-500 text-center py-12">All players are starting</p>
             : bench.map(p => <BenchCard key={p.id} player={p} onDrop={dropPlayer} />)

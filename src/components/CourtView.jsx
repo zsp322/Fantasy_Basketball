@@ -11,7 +11,7 @@ const SLOTS = [
 
 export default function CourtView({ starters, onSlotClick }) {
   return (
-    <div className="relative w-full" style={{ aspectRatio: '16/10' }}>
+    <div className="relative w-full h-full">
 
       {/* Arena atmosphere glow */}
       <div className="absolute inset-0 rounded-2xl overflow-hidden"

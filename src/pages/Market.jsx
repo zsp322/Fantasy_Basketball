@@ -113,7 +113,7 @@ export default function Market({ players, team }) {
   }
 
   return (
-    <div className="p-4 md:p-6 text-white max-w-2xl mx-auto">
+    <div className="h-full overflow-y-auto p-4 md:p-6 text-white max-w-2xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-2">
         <div>
