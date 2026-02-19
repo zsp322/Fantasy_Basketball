@@ -60,7 +60,8 @@ export function useTeam() {
   function dropPlayer(playerId) {
     const player = state.team.find(p => p.id === playerId)
     if (!player) return
-    const refund = parseFloat(((player.tier?.salary ?? 0) * 0.5).toFixed(1))
+    // 20% sell penalty — player receives 80% of salary back
+    const refund = parseFloat(((player.tier?.salary ?? 0) * 0.8).toFixed(1))
     persist({
       ...state,
       team: state.team.filter(p => p.id !== playerId),

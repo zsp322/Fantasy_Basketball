@@ -36,6 +36,17 @@ export const T = {
     generate:       { en: 'Generate Market',     zh: '生成市场' },
   },
 
+  // ── Foundational Pick ──────────────────────────────────────────────────────
+  foundational: {
+    title:       { en: 'Choose Your Foundational Player',  zh: '选择你的核心球员' },
+    subtitle:    { en: 'Pick one S-tier superstar to anchor your team. Choose wisely.',
+                   zh: '选择一位 S 级超级球星作为球队核心，慎重选择。' },
+    rosterNote:  { en: 'You\'ll also receive 7 randomly assigned players to fill your roster.',
+                   zh: '你还将获得 7 名随机分配的球员来填充阵容。' },
+    salary:      { en: 'Salary',  zh: '薪资' },
+    lockIn:      { en: 'Lock In →', zh: '确认选择 →' },
+  },
+
   // ── My Team ────────────────────────────────────────────────────────────────
   myTeam: {
     cash:          { en: 'Cash',                  zh: '现金' },
@@ -43,8 +54,11 @@ export const T = {
     bench:         { en: 'Bench',                  zh: '板凳席' },
     reset:         { en: 'Reset',                  zh: '重置' },
     resetConfirm:  { en: 'Reset your team and start over?', zh: '确认重置球队并重新开始？' },
+    hardReset:     { en: '⚠ Hard Reset (Dev)',     zh: '⚠ 完全重置 (Dev)' },
+    hardResetConfirm: { en: 'Clear ALL data and restart from scratch?', zh: '清除所有数据并重新开始？' },
     allStarting:   { en: 'All players are in the starting lineup', zh: '所有球员都在首发阵容中' },
-    dropConfirm:   { en: 'Drop',                   zh: '释放' },
+    sellBtn:       { en: 'Sell',                   zh: '出售' },
+    sellFor:       { en: (n) => `Sell $${n}M`,     zh: (n) => `出售 $${n}M` },
     starterCount:  { en: (n, total) => `${n}/5 starters · ${total} players`,
                      zh: (n, total) => `${n}/5 首发 · ${total} 球员` },
   },

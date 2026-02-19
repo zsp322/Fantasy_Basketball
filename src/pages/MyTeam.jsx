@@ -61,14 +61,14 @@ function BenchChip({ player, onDrop, lang = 'zh' }) {
         </div>
       </div>
 
-      {/* Drop button on hover */}
+      {/* Sell button on hover */}
       {confirming ? (
         <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-1 z-20 whitespace-nowrap">
           <button
             onClick={() => onDrop(player.id)}
-            className="bg-red-700 hover:bg-red-600 text-white text-xs px-2 py-0.5 rounded"
+            className="bg-green-700 hover:bg-green-600 text-white text-xs px-2 py-0.5 rounded"
           >
-            {t(T.myTeam.dropConfirm, lang)}
+            {t(T.myTeam.sellFor, lang, parseFloat(((player.tier?.salary ?? 0) * 0.8).toFixed(1)))}
           </button>
           <button
             onClick={() => setConfirming(false)}
@@ -80,9 +80,9 @@ function BenchChip({ player, onDrop, lang = 'zh' }) {
       ) : (
         <button
           onClick={() => setConfirming(true)}
-          className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 hover:bg-red-900 border border-gray-600 hover:border-red-700 rounded-full text-gray-500 hover:text-red-400 text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+          className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 hover:bg-green-900 border border-gray-600 hover:border-green-700 rounded-full text-gray-500 hover:text-green-400 text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
         >
-          ×
+          $
         </button>
       )}
     </div>
@@ -164,14 +164,27 @@ export default function MyTeam({ team }) {
         </div>
       </div>
 
-      {/* ── Top-right: reset button ── */}
-      <div className="absolute top-3 right-3 z-20">
+      {/* ── Top-right: reset buttons ── */}
+      <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5 items-end">
         <button
           onClick={() => { if (window.confirm(t(T.myTeam.resetConfirm, lang))) resetTeam() }}
           className="text-xs text-gray-600 hover:text-red-400 bg-black/60 border border-gray-700/50 px-2.5 py-1.5 rounded-lg transition-colors"
         >
           {t(T.myTeam.reset, lang)}
         </button>
+        {import.meta.env.DEV && (
+          <button
+            onClick={() => {
+              if (window.confirm(t(T.myTeam.hardResetConfirm, lang))) {
+                localStorage.clear()
+                window.location.reload()
+              }
+            }}
+            className="text-xs text-orange-700 hover:text-orange-400 bg-black/60 border border-orange-900/50 px-2.5 py-1.5 rounded-lg transition-colors"
+          >
+            {t(T.myTeam.hardReset, lang)}
+          </button>
+        )}
       </div>
 
       {/* ── Bottom bench strip ── */}
