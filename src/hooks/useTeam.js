@@ -69,6 +69,10 @@ export function useTeam() {
     })
   }
 
+  function addCash(amount) {
+    persist({ ...state, cash: parseFloat((state.cash + amount).toFixed(1)) })
+  }
+
   function resetTeam() {
     persist(DEFAULT_STATE)
   }
@@ -83,6 +87,7 @@ export function useTeam() {
     initTeam,
     buyPlayer,
     dropPlayer,
+    addCash,
     resetTeam,
   }
 }

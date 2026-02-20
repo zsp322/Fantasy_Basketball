@@ -664,7 +664,7 @@ function BoxScoreTable({ players, starterIds, boxEntries, label, lang }) {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Simulate() {
-  const { team: roster } = useTeam()
+  const { team: roster, addCash } = useTeam()
   const { starters, assign } = useStarters(roster)
   const { lang } = useSettings()
 
@@ -688,11 +688,14 @@ export default function Simulate() {
   // swapTarget: { player, rect, side }
   const [swapTarget, setSwapTarget]         = useState(null)
 
+  const [rewardGranted, setRewardGranted] = useState(false)
+
   const logRef           = useRef(null)
   const intervalRef      = useRef(null)
   const pauseTimerRef    = useRef(null)
   const lastAutoSubRef   = useRef(null) // { playerId, revealedWhen } — prevent same-tick re-sub
   const benchedAtRef     = useRef({})  // { [playerId]: { revealedWhen, energyWhenBenched } }
+  const rewardGivenRef   = useRef(false)
   const startersRef      = useRef(starters)
   useEffect(() => { startersRef.current = starters }, [starters])
   // Hold gameResult in a ref so startInterval closure can access the latest value
@@ -713,6 +716,15 @@ export default function Simulate() {
   const currentScore   = lastPlay ? lastPlay.score : [0, 0]
   const currentQuarter = lastPlay ? lastPlay.quarter : 1
   const isDone         = gameResult != null && revealed >= gameResult.plays.length
+
+  // Grant $5M reward once when player wins
+  useEffect(() => {
+    if (isDone && gameResult?.winner === 'my' && !rewardGivenRef.current) {
+      rewardGivenRef.current = true
+      addCash(5)
+      setRewardGranted(true)
+    }
+  }, [isDone, gameResult?.winner])
 
   const liveMyEnergy  = lastPlay?.energySnapshot?.myTeam  ?? null
   const liveNpcEnergy = lastPlay?.energySnapshot?.npcTeam ?? null
@@ -832,6 +844,8 @@ export default function Simulate() {
     clearInterval(pauseTimerRef.current)
     lastAutoSubRef.current = null
     benchedAtRef.current   = {}
+    rewardGivenRef.current = false
+    setRewardGranted(false)
     const result = simulateGame(myStartersList, npcStarters, [...npcBench])
     setGameResult(result)
     setRevealed(0)
@@ -847,6 +861,8 @@ export default function Simulate() {
     clearInterval(pauseTimerRef.current)
     lastAutoSubRef.current = null
     benchedAtRef.current   = {}
+    rewardGivenRef.current = false
+    setRewardGranted(false)
     setGameResult(null)
     setRevealed(0)
     setIsAnimating(false)
@@ -1123,6 +1139,12 @@ export default function Simulate() {
                   className="ml-1 px-3 py-1 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded text-xs transition-colors">
                   {t(T.simulate.newGame, lang)}
                 </button>
+                {rewardGranted && (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold"
+                    style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.4)', color: '#4ade80' }}>
+                    {t(T.simulate.winReward, lang)}
+                  </div>
+                )}
               </>
             )}
 

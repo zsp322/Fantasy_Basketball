@@ -89,6 +89,7 @@ export const T = {
     final:           { en: 'FINAL',             zh: '终场' },
     vs:              { en: 'VS',                zh: 'VS' },
     youWin:          { en: '🏆 YOU WIN',         zh: '🏆 你赢了' },
+    winReward:       { en: '+$5M Victory Bonus', zh: '+$500万 胜利奖励' },
     dynastyWins:     { en: 'DYNASTY WINS',      zh: '王朝获胜' },
     tie:             { en: 'TIE GAME',           zh: '平局' },
     playLog:         { en: 'Play Log',          zh: '对战日志' },

@@ -3,7 +3,7 @@ import { fetchActivePlayers } from '../api/players'
 import { calcFantasyScore, calcOffenseRating, calcDefenseRating, resolvePosition, resolveEligiblePositions } from '../utils/scoring'
 import { assignTiers } from '../utils/tiers'
 
-const CACHE_KEY = 'fbball_players_cache_v4' // bumped for height + position normalization
+const CACHE_KEY = 'fbball_players_cache_v5' // bumped for salary rescale (S+=70M)
 const CACHE_TTL = 1000 * 60 * 60 // 1 hour
 
 export function usePlayers() {

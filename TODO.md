@@ -19,12 +19,8 @@ _(all fixed — see Done ✅)_
 ## Small Features 💡
 > Visible improvements that can be done in one session.
 
-1. The salary distribution needs to be re-done — the best player should be ~700K (like real NBA scale), and remember this will later move to backend. Frontend only shows the player stats.
-2. Add drag-and-drop swap in My Team — currently requires: click slot → pick from bench → then re-add displaced player manually.
-3. ~~Hover popup (PlayerStatsPopup) on FoundationalPick and TeamReveal init stages~~ ✅ Done
-4. Auto-assign on My Team should be based on ability and position. (Position comes first and then ability)
-5. ~~Auto-simulate mode — toggle button; auto-subs tired players continuously, bench players recover energy~~ ✅ Done
-6. Add sell/release button for bench players — needs UX design before implementation.
+1. Add drag-and-drop swap in My Team — currently requires: click slot → pick from bench → then re-add displaced player manually.
+2. Add sell/release button for bench players — needs UX design before implementation.
 
 ---
 
@@ -63,6 +59,8 @@ _(all fixed — see Done ✅)_
 - [x] In My Team page, lineup cards 25% bigger and bench strip 20% taller
 - [x] Team init animation — cards reveal one by one with tier-glow borders + Shuffle button to regenerate auto picks
 - [x] Player position precision: map ESPN abbreviations (G, F, G/F, PF/C, etc.) to exact slots using height; multi-position players can fill any eligible slot without penalty
+- [x] Salary rescaled to real NBA scale — S+ = $70M, proportional down to F = $0.8M; cache bumped to v5
+- [x] Win reward — beating the NPC team grants $5M cash, shown as a green banner on the simulate page
 
 ---
 
