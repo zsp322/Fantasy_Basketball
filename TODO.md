@@ -61,6 +61,7 @@ _(all fixed — see Done ✅)_
 - [x] Player position precision: map ESPN abbreviations (G, F, G/F, PF/C, etc.) to exact slots using height; multi-position players can fill any eligible slot without penalty
 - [x] Salary rescaled to real NBA scale — S+ = $70M, proportional down to F = $0.8M; cache bumped to v5
 - [x] Win reward — beating the NPC team grants $5M cash, shown as a green banner on the simulate page
+- [x] Bug: Win reward cash not applied — addCash used stale closure state; fixed with functional setState form
 
 ---
 

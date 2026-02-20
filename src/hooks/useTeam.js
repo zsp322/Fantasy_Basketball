@@ -70,7 +70,11 @@ export function useTeam() {
   }
 
   function addCash(amount) {
-    persist({ ...state, cash: parseFloat((state.cash + amount).toFixed(1)) })
+    setState(prev => {
+      const next = { ...prev, cash: parseFloat((prev.cash + amount).toFixed(1)) }
+      saveState(next)
+      return next
+    })
   }
 
   function resetTeam() {
