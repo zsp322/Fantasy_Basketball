@@ -14,7 +14,7 @@ function getTierBorderClass(tierName) {
   if (!tierName) return 'border-gray-700'
   if (['S+', 'S', 'S-'].includes(tierName)) return 'border-purple-400'
   if (['A+', 'A', 'A-'].includes(tierName)) return 'border-blue-400'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'border-cyan-400'
+  if (['B+', 'B', 'B-'].includes(tierName)) return 'border-teal-400'
   if (['C+', 'C', 'C-'].includes(tierName)) return 'border-green-400'
   return 'border-gray-600'
 }
@@ -114,7 +114,7 @@ export default function MyTeam({ team }) {
 
       {/* Player stats popup (portal — renders outside overflow-hidden) */}
       {hoverState && (
-        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} />
+        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} lang={lang} />
       )}
 
       {/* ── Top-left: team info panel ── */}

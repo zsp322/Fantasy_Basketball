@@ -2,10 +2,20 @@ import PlayerAvatar from './PlayerAvatar'
 import TierBadge from './TierBadge'
 import { useSettings } from '../contexts/SettingsContext'
 import { getPlayerName } from '../data/playerNames'
+import { getPosMismatchMult } from '../utils/gameEngine'
 
 export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign, onRemove, onClose }) {
   const { lang } = useSettings()
   const stat = (val) => val != null ? Number(val).toFixed(1) : '—'
+
+  // Sort by effective ATK+DEF at this slot (penalty applied), descending
+  const sortedBench = [...benchPlayers].sort((a, b) => {
+    const pmA = getPosMismatchMult(a.position, pos, a.positions)
+    const pmB = getPosMismatchMult(b.position, pos, b.positions)
+    const effA = ((a.offenseRating ?? 0) + (a.defenseRating ?? 0)) * pmA
+    const effB = ((b.offenseRating ?? 0) + (b.defenseRating ?? 0)) * pmB
+    return effB - effA
+  })
 
   return (
     <>
@@ -60,28 +70,59 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
         {/* Bench list */}
         <div className="overflow-y-auto flex-1 px-4 py-3">
           <p className="text-gray-500 text-xs mb-3 uppercase tracking-wider">
-            {benchPlayers.length === 0 ? 'No bench players available' : 'Select from bench'}
+            {sortedBench.length === 0
+              ? 'No bench players available'
+              : lang === 'zh' ? '选择替补（按实际能力排序）' : 'Select from bench (sorted by effective rating)'}
           </p>
           <div className="flex flex-col gap-2">
-            {benchPlayers.map(player => (
-              <button
-                key={player.id}
-                onClick={() => { onAssign(pos, player); onClose() }}
-                className="flex items-center gap-3 bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-600 rounded-xl p-3 text-left transition-colors w-full"
-              >
-                <PlayerAvatar player={player} size="sm" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-white font-semibold text-sm truncate">
-                    {getPlayerName(player, lang)}
+            {sortedBench.map(player => {
+              const pm = getPosMismatchMult(player.position, pos, player.positions)
+              const pen = Math.round((1 - pm) * 100)
+              const severe = pen >= 35
+              const mild = pen > 0 && !severe
+              const effAtk = Math.round((player.offenseRating ?? 0) * pm)
+              const effDef = Math.round((player.defenseRating ?? 0) * pm)
+
+              return (
+                <button
+                  key={player.id}
+                  onClick={() => { onAssign(pos, player); onClose() }}
+                  style={{
+                    borderColor: severe ? '#7f1d1d' : mild ? '#78350f' : '#1f2937',
+                    background: severe ? 'rgba(127,29,29,0.18)' : mild ? 'rgba(120,53,15,0.15)' : '#111827',
+                  }}
+                  className="flex items-center gap-3 hover:brightness-110 border rounded-xl p-3 text-left transition-all w-full"
+                >
+                  <PlayerAvatar player={player} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                      <div className="text-white font-semibold text-sm truncate">
+                        {getPlayerName(player, lang)}
+                      </div>
+                      {pen > 0 && (
+                        <span className={`text-xs font-bold px-1 py-0.5 rounded shrink-0 ${severe ? 'bg-red-900/60 text-red-400' : 'bg-amber-900/60 text-amber-400'}`}>
+                          {(player.positions ?? [player.position]).join('/')}→{pos} −{pen}%
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex gap-3 text-xs">
+                      <span className="text-orange-400">
+                        {lang === 'zh' ? '进攻' : 'ATK'}{' '}
+                        <span className="font-bold">{effAtk}</span>
+                        {pen > 0 && <span className="text-gray-600 ml-0.5">({player.offenseRating})</span>}
+                      </span>
+                      <span className="text-blue-400">
+                        {lang === 'zh' ? '防守' : 'DEF'}{' '}
+                        <span className="font-bold">{effDef}</span>
+                        {pen > 0 && <span className="text-gray-600 ml-0.5">({player.defenseRating})</span>}
+                      </span>
+                      <span className="text-gray-600">{(player.positions ?? [player.position]).join('/')}</span>
+                    </div>
                   </div>
-                  <div className="text-gray-400 text-xs">
-                    {player.avg?.teamAbbr ?? '—'} · {player.position || '—'} ·{' '}
-                    {stat(player.avg?.pts)} PTS · {stat(player.avg?.reb)} REB · {stat(player.avg?.ast)} AST
-                  </div>
-                </div>
-                <TierBadge tier={player.tier} size="sm" />
-              </button>
-            ))}
+                  <TierBadge tier={player.tier} size="sm" />
+                </button>
+              )
+            })}
           </div>
         </div>
       </div>

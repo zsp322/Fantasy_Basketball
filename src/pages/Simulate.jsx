@@ -24,7 +24,7 @@ function getTierBorder(tierName) {
   if (!tierName) return '#374151'
   if (['S+', 'S', 'S-'].includes(tierName)) return '#a855f7'
   if (['A+', 'A', 'A-'].includes(tierName)) return '#60a5fa'
-  if (['B+', 'B', 'B-'].includes(tierName)) return '#22d3ee'
+  if (['B+', 'B', 'B-'].includes(tierName)) return '#14b8a6'
   if (['C+', 'C', 'C-'].includes(tierName)) return '#4ade80'
   return '#6b7280'
 }
@@ -809,24 +809,43 @@ export default function Simulate() {
           <div className="text-gray-500 text-xs">
             {!gameResult ? t(T.simulate.vs, lang) : isDone ? t(T.simulate.final, lang) : `Q${currentQuarter}`}
           </div>
-          {gameResult && (
-            <div className="flex gap-1" style={{ fontSize: 10 }}>
-              {qScores.map(([m, n], i) => (
-                <div key={i} className="flex flex-col items-center px-1.5 py-0.5 bg-gray-800/70 rounded">
-                  <span className="text-gray-500">Q{i + 1}</span>
-                  <span className="text-orange-300 font-bold">{m}</span>
-                  <span className="text-yellow-300 font-bold">{n}</span>
-                </div>
-              ))}
-              {Array.from({ length: 4 - qScores.length }).map((_, i) => (
-                <div key={`e${i}`} className="flex flex-col items-center px-1.5 py-0.5 bg-gray-800/30 rounded">
-                  <span className="text-gray-700">Q{qScores.length + i + 1}</span>
-                  <span className="text-gray-700">—</span>
-                  <span className="text-gray-700">—</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {gameResult && (() => {
+            // Only show completed quarters; derive current-quarter running score from cumulative total
+            const completedQCount = isDone ? qScores.length : Math.max(0, currentQuarter - 1)
+            const completedQScores = qScores.slice(0, completedQCount)
+            const sumMy  = completedQScores.reduce((s, [m]) => s + m, 0)
+            const sumNpc = completedQScores.reduce((s, [, n]) => s + n, 0)
+            const curQMy  = currentScore[0] - sumMy
+            const curQNpc = currentScore[1] - sumNpc
+            return (
+              <div className="flex gap-1" style={{ fontSize: 10 }}>
+                {/* Completed quarters */}
+                {completedQScores.map(([m, n], i) => (
+                  <div key={i} className="flex flex-col items-center px-1.5 py-0.5 bg-gray-800/70 rounded">
+                    <span className="text-gray-500">Q{i + 1}</span>
+                    <span className="text-orange-300 font-bold">{m}</span>
+                    <span className="text-yellow-300 font-bold">{n}</span>
+                  </div>
+                ))}
+                {/* Current quarter live score */}
+                {!isDone && (
+                  <div className="flex flex-col items-center px-1.5 py-0.5 bg-gray-800/40 border border-gray-700/40 rounded">
+                    <span className="text-orange-600 font-bold" style={{ fontSize: 8 }}>Q{currentQuarter}▶</span>
+                    <span className="text-orange-300 font-bold">{curQMy}</span>
+                    <span className="text-yellow-300 font-bold">{curQNpc}</span>
+                  </div>
+                )}
+                {/* Future quarters */}
+                {Array.from({ length: isDone ? 0 : 3 - completedQCount }).map((_, i) => (
+                  <div key={`e${i}`} className="flex flex-col items-center px-1.5 py-0.5 bg-gray-800/30 rounded">
+                    <span className="text-gray-700">Q{completedQCount + i + 2}</span>
+                    <span className="text-gray-700">—</span>
+                    <span className="text-gray-700">—</span>
+                  </div>
+                ))}
+              </div>
+            )
+          })()}
           {isDone && (
             <div className="font-bold px-2 py-0.5 rounded text-xs bg-gray-800 text-blue-400">
               {gameResult.winner === 'my' ? t(T.simulate.youWin, lang)

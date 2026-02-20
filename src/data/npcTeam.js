@@ -62,7 +62,7 @@ export const npcStarters = [
     },
     offenseRating: 74,
     defenseRating: 65,
-    tier: { name: 'B+', color: 'bg-cyan-400', salary: 13 },
+    tier: { name: 'B+', color: 'bg-teal-500', salary: 13 },
   },
   {
     id: 'npc_green',
@@ -98,7 +98,7 @@ export const npcStarters = [
     },
     offenseRating: 54,
     defenseRating: 152,
-    tier: { name: 'B-', color: 'bg-cyan-300', salary: 7 },
+    tier: { name: 'B-', color: 'bg-teal-300', salary: 7 },
   },
 ]
 
@@ -138,7 +138,7 @@ export const npcBench = [
     },
     offenseRating: 71,
     defenseRating: 130,
-    tier: { name: 'B+', color: 'bg-cyan-400', salary: 13 },
+    tier: { name: 'B+', color: 'bg-teal-500', salary: 13 },
   },
   {
     id: 'npc_ezeli',

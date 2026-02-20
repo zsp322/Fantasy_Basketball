@@ -1,4 +1,5 @@
 import ReactDOM from 'react-dom'
+import { getPlayerName } from '../data/playerNames'
 
 // Radar chart axes and their rough max values for normalization
 const AXES = [
@@ -115,7 +116,7 @@ function RadarChart({ avg }) {
   )
 }
 
-export default function PlayerStatsPopup({ player, rect }) {
+export default function PlayerStatsPopup({ player, rect, lang = 'zh' }) {
   if (!player || !rect) return null
 
   const POPUP_W = 270
@@ -170,7 +171,7 @@ export default function PlayerStatsPopup({ player, rect }) {
           )}
           <div className="flex-1 min-w-0">
             <div className="text-white font-bold text-sm leading-tight">
-              {player.first_name} {player.last_name}
+              {getPlayerName(player, lang)}
             </div>
             <div className="text-gray-400 text-xs mt-0.5">
               {avg?.teamAbbr ?? '—'} · {player.position || '—'}
@@ -187,11 +188,11 @@ export default function PlayerStatsPopup({ player, rect }) {
           <div className="text-right flex-shrink-0 flex flex-col gap-1">
             <div>
               <div className="text-orange-400 font-bold text-base leading-tight">{player.offenseRating ?? '—'}</div>
-              <div className="text-gray-500 text-xs">ATK</div>
+              <div className="text-gray-500 text-xs">{lang === 'zh' ? '进攻' : 'ATK'}</div>
             </div>
             <div>
               <div className="text-blue-400 font-bold text-base leading-tight">{player.defenseRating ?? '—'}</div>
-              <div className="text-gray-500 text-xs">DEF</div>
+              <div className="text-gray-500 text-xs">{lang === 'zh' ? '防守' : 'DEF'}</div>
             </div>
           </div>
         </div>
@@ -203,14 +204,14 @@ export default function PlayerStatsPopup({ player, rect }) {
           {/* Extra stats on the right */}
           <div className="flex flex-col gap-1.5 flex-1">
             {[
-              { label: 'PTS', value: stat(avg?.pts), color: 'text-orange-300' },
-              { label: 'REB', value: stat(avg?.reb), color: 'text-blue-300' },
-              { label: 'AST', value: stat(avg?.ast), color: 'text-green-300' },
-              { label: 'STL', value: stat(avg?.stl), color: 'text-yellow-300' },
-              { label: 'BLK', value: stat(avg?.blk), color: 'text-purple-300' },
-              { label: 'TO',  value: stat(avg?.to),  color: 'text-red-400' },
-            ].map(({ label, value, color }) => (
-              <div key={label} className="flex justify-between items-center">
+              { key: 'PTS', label: lang === 'zh' ? '得分' : 'PTS', value: stat(avg?.pts), color: 'text-orange-300' },
+              { key: 'REB', label: lang === 'zh' ? '篮板' : 'REB', value: stat(avg?.reb), color: 'text-blue-300' },
+              { key: 'AST', label: lang === 'zh' ? '助攻' : 'AST', value: stat(avg?.ast), color: 'text-green-300' },
+              { key: 'STL', label: lang === 'zh' ? '抢断' : 'STL', value: stat(avg?.stl), color: 'text-yellow-300' },
+              { key: 'BLK', label: lang === 'zh' ? '盖帽' : 'BLK', value: stat(avg?.blk), color: 'text-purple-300' },
+              { key: 'TO',  label: lang === 'zh' ? '失误' : 'TO',  value: stat(avg?.to),  color: 'text-red-400' },
+            ].map(({ key, label, value, color }) => (
+              <div key={key} className="flex justify-between items-center">
                 <span className="text-gray-500 text-xs w-7">{label}</span>
                 <div className="flex-1 mx-1.5 bg-gray-800 rounded-full h-1">
                   <div
@@ -218,7 +219,7 @@ export default function PlayerStatsPopup({ player, rect }) {
                     style={{
                       width: `${Math.min(
                         (Number(value) /
-                          ({ PTS: 35, REB: 15, AST: 12, STL: 3, BLK: 3.5, TO: 5 }[label] ?? 10)) *
+                          ({ PTS: 35, REB: 15, AST: 12, STL: 3, BLK: 3.5, TO: 5 }[key] ?? 10)) *
                           100,
                         100
                       )}%`,

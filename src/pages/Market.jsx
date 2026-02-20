@@ -21,7 +21,7 @@ function getTierBorderColor(tierName) {
   if (!tierName) return 'rgba(75,85,99,0.8)'
   if (['S+', 'S', 'S-'].includes(tierName)) return 'rgba(168,85,247,0.9)'
   if (['A+', 'A', 'A-'].includes(tierName)) return 'rgba(96,165,250,0.9)'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(34,211,238,0.9)'
+  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(20,184,166,0.9)'
   if (['C+', 'C', 'C-'].includes(tierName)) return 'rgba(74,222,128,0.9)'
   return 'rgba(156,163,175,0.6)'
 }
@@ -30,7 +30,7 @@ function getTierGlow(tierName) {
   if (!tierName) return 'transparent'
   if (['S+', 'S', 'S-'].includes(tierName)) return 'rgba(168,85,247,0.5)'
   if (['A+', 'A', 'A-'].includes(tierName)) return 'rgba(96,165,250,0.45)'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(34,211,238,0.4)'
+  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(20,184,166,0.4)'
   if (['C+', 'C', 'C-'].includes(tierName)) return 'rgba(74,222,128,0.4)'
   return 'rgba(156,163,175,0.2)'
 }
