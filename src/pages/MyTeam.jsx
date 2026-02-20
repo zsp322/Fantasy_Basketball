@@ -65,7 +65,7 @@ function BenchChip({ player, lang = 'zh' }) {
 
 export default function MyTeam({ team }) {
   const { lang } = useSettings()
-  const { team: roster, totalSalary, capRemaining, cash, resetTeam } = team
+  const { team: roster, totalSalary, capRemaining, cash, resetTeam, dropPlayer } = team
   const { starters, assign, remove } = useStarters(roster)
   const [drawer, setDrawer] = useState(null)
   const [hoverState, setHoverState] = useState(null) // { player, rect }
@@ -193,6 +193,7 @@ export default function MyTeam({ team }) {
           benchPlayers={bench.filter(p => p.id !== drawer.player?.id)}
           onAssign={assign}
           onRemove={remove}
+          onSell={(playerId) => { dropPlayer(playerId); setDrawer(null) }}
           onClose={() => setDrawer(null)}
         />
       )}

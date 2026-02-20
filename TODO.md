@@ -20,7 +20,6 @@ _(all fixed — see Done ✅)_
 > Visible improvements that can be done in one session.
 
 1. Add drag-and-drop swap in My Team — currently requires: click slot → pick from bench → then re-add displaced player manually.
-2. Add sell/release button for bench players — needs UX design before implementation.
 
 ---
 
@@ -62,6 +61,7 @@ _(all fixed — see Done ✅)_
 - [x] Salary rescaled to real NBA scale — S+ = $70M, proportional down to F = $0.8M; cache bumped to v5
 - [x] Win reward — beating the NPC team grants $5M cash, shown as a green banner on the simulate page
 - [x] Bug: Win reward cash not applied — addCash used stale closure state; fixed with functional setState form
+- [x] Feature: Sell player from My Team — Sell button in SwapDrawer with confirmation overlay; 80% salary refund via dropPlayer
 
 ---
 
