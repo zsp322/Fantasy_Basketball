@@ -10,7 +10,7 @@ export const T = {
   nav: {
     home:     { en: 'Home',     zh: '主页' },
     market:   { en: 'Market',   zh: '市场' },
-    myTeam:   { en: 'My Team',  zh: '我的队' },
+    myTeam:   { en: 'My Team',  zh: '我的球队' },
     simulate: { en: 'Simulate', zh: '模拟' },
     league:   { en: 'League',   zh: '联赛' },
   },
@@ -55,6 +55,16 @@ export const T = {
     shuffle:      { en: '↺ Shuffle', zh: '↺ 重新分配' },
   },
 
+  // ── Swap Drawer ────────────────────────────────────────────────────────────
+  swapDrawer: {
+    positionLabel:    { en: (pos) => `${pos} Position`,       zh: (pos) => `${pos} 位置` },
+    currently:        { en: (name) => `Currently: ${name}`,   zh: (name) => `当前：${name}` },
+    emptySlot:        { en: 'Empty slot — pick a player',     zh: '空位 — 选择一名球员' },
+    removeBtn:        { en: 'Remove',                         zh: '移除' },
+    noBench:          { en: 'No bench players available',     zh: '没有可用替补' },
+    selectBench:      { en: 'Select from bench (sorted by effective rating)', zh: '选择替补（按实际能力排序）' },
+  },
+
   // ── My Team ────────────────────────────────────────────────────────────────
   myTeam: {
     cash:          { en: 'Cash',                  zh: '现金' },
@@ -67,13 +77,15 @@ export const T = {
     allStarting:   { en: 'All players are in the starting lineup', zh: '所有球员都在首发阵容中' },
     sellBtn:       { en: 'Sell',                   zh: '出售' },
     sellFor:       { en: (n) => `Sell $${n}M`,     zh: (n) => `出售 $${n}M` },
+    sellConfirm:   { en: (name, n) => `Release ${name} for $${n}M (80% of salary)?`,
+                     zh: (name, n) => `以 $${n}M 出售 ${name}（薪资的80%）？` },
     starterCount:  { en: (n, total) => `${n}/5 starters · ${total} players`,
                      zh: (n, total) => `${n}/5 首发 · ${total} 球员` },
   },
 
   // ── Simulate ───────────────────────────────────────────────────────────────
   simulate: {
-    myTeamLabel:     { en: 'MY TEAM',           zh: '我的队' },
+    myTeamLabel:     { en: 'MY TEAM',           zh: '我的球队' },
     final:           { en: 'FINAL',             zh: '终场' },
     vs:              { en: 'VS',                zh: 'VS' },
     youWin:          { en: '🏆 YOU WIN',         zh: '🏆 你赢了' },
@@ -95,6 +107,18 @@ export const T = {
                        zh: '请到"我的队"页面，填满5个首发位置 (PG, SG, SF, PF, C)。' },
     playsCount:      { en: (r, t) => `${r} / ${t} plays`,  zh: (r, t) => `${r} / ${t} 回合` },
     vsLabel:         { en: (name) => `vs ${name}`,          zh: (name) => `对阵 ${name}` },
+    pause:           { en: 'Pause',                         zh: '暂停' },
+    resume:          { en: 'Resume',                        zh: '继续' },
+    autoResume:      { en: (n) => `Auto in ${n}s`,          zh: (n) => `${n}秒后自动继续` },
+    statsBtn:        { en: 'Stats',                         zh: '数据' },
+    clickToSub:      { en: '— click a player to sub',       zh: '— 点击球员换人' },
+    liveBoxScore:    { en: 'Live Box Score',                zh: '当前数据统计' },
+    autoSimulate:    { en: '⚡ Auto',                        zh: '⚡ 自动换人' },
+    autoSimulateOff: { en: 'Manual',                        zh: '手动' },
+    subPlayer:       { en: 'Sub player',                    zh: '换人' },
+    currentPlayer:   { en: 'Current',                       zh: '当前球员' },
+    noBenchSub:      { en: 'No bench players',              zh: '无替补' },
+    selectSub:       { en: 'Select replacement',            zh: '选择替补' },
   },
 
   // ── League ─────────────────────────────────────────────────────────────────
@@ -118,6 +142,7 @@ export const T = {
     stl:  { en: 'STL', zh: '抢断' },
     blk:  { en: 'BLK', zh: '盖帽' },
     to:   { en: 'TO',  zh: '失误' },
+    min:  { en: 'MIN', zh: '时间' },
   },
 }
 

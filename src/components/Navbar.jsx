@@ -4,7 +4,7 @@ import { useSettings } from '../contexts/SettingsContext'
 const links = [
   { to: '/', label: { en: 'Home', zh: '主页' } },
   { to: '/market', label: { en: 'Market', zh: '市场' } },
-  { to: '/team', label: { en: 'My Team', zh: '我的队' } },
+  { to: '/team', label: { en: 'My Team', zh: '我的球队' } },
   { to: '/simulate', label: { en: 'Simulate', zh: '模拟' } },
   { to: '/league', label: { en: 'League', zh: '联赛' } },
 ]

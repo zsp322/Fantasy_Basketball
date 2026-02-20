@@ -245,7 +245,7 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
   )
 }
 
-// ─── Live box score from visible plays ───────────────────────────────────────
+// ─── Live box score from visible plays (for the mid-game float overlay) ──────
 function computeLiveBoxScore(plays) {
   const boxes = {}
   function box(id) {
@@ -275,6 +275,66 @@ function computeLiveBoxScore(plays) {
     }
   }
   return boxes
+}
+
+// ─── Full box score for game-end display — scans ALL plays across all subs ───
+// Returns { myTeam: { [id]: box }, npcTeam: { [id]: box } }
+// Each box: pts, reb, ast, stl, blk, to, fga, fgm, fg3a, fg3m, min
+function computeFinalBoxScore(plays) {
+  const myTeam  = {}
+  const npcTeam = {}
+
+  function getBox(boxes, id) {
+    if (!boxes[id]) boxes[id] = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, appearances: 0, player: null }
+    return boxes[id]
+  }
+
+  for (const play of plays) {
+    if (play.isSub) continue
+    const atkBoxes = play.teamIndex === 0 ? myTeam  : npcTeam
+    const defBoxes = play.teamIndex === 0 ? npcTeam : myTeam
+    const atk = play.attacker
+    const def = play.defender
+
+    if (atk) {
+      const b = getBox(atkBoxes, atk.id)
+      b.player = atk
+      b.appearances++
+      if (play.turnover) {
+        b.to++
+      } else if (play.shotType === 'FT') {
+        b.fta = (b.fta ?? 0) + 2
+        b.ftm = (b.ftm ?? 0) + (play.ftMade ?? 0)
+        b.pts += play.points
+      } else if (play.shotType) {
+        b.fga++
+        if (play.shotType === '3pt') { b.fg3a++; if (play.made) { b.fg3m++; b.fgm++; b.pts += 3 } }
+        else { if (play.made) { b.fgm++; b.pts += 2 } }
+        if (play.specialEvent === 'off_reb') b.reb++
+      }
+    }
+
+    if (def) {
+      const b = getBox(defBoxes, def.id)
+      b.player = def
+      b.appearances++
+      if (play.specialEvent === 'steal') b.stl++
+      if (play.specialEvent === 'block') b.blk++
+      // Defensive rebound on a missed shot with no steal
+      if (!play.made && !play.turnover && play.specialEvent !== 'steal' && play.specialEvent !== 'off_reb') {
+        if (Math.random() < 0.70) b.reb++
+      }
+    }
+  }
+
+  // Compute MIN: appearances × 1.5, capped at 48
+  for (const boxes of [myTeam, npcTeam]) {
+    for (const id in boxes) {
+      boxes[id].min = Math.min(48, Math.round(boxes[id].appearances * 1.5))
+    }
+  }
+
+  return { myTeam, npcTeam }
 }
 
 // ─── Paused live box score overlay ────────────────────────────────────────────
@@ -319,7 +379,7 @@ function LiveBoxScoreFloat({ myStartersList, currentNpcActive, visiblePlays, onC
     >
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800">
         <span className="text-white font-bold text-sm">
-          {lang === 'zh' ? '当前数据统计' : 'Live Box Score'}
+          {t(T.simulate.liveBoxScore, lang)}
         </span>
         <button onClick={onClose} className="text-gray-500 hover:text-white text-lg px-1">✕</button>
       </div>
@@ -380,7 +440,7 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
           <div>
             <span className="text-white font-bold text-sm">{pos} </span>
             <span className="text-gray-500 text-xs">
-              {lang === 'zh' ? '换人' : 'Sub player'}
+              {t(T.simulate.subPlayer, lang)}
             </span>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-lg px-1">✕</button>
@@ -389,7 +449,7 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
         {/* Current player */}
         <div className="px-3 py-2 border-b border-gray-800 bg-gray-900/60">
           <div className="text-gray-600 text-xs mb-0.5 uppercase tracking-wide">
-            {lang === 'zh' ? '当前球员' : 'Current'}
+            {t(T.simulate.currentPlayer, lang)}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-white font-semibold text-sm">{getPlayerName(player, lang)}</span>
@@ -403,8 +463,8 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
         <div className="max-h-64 overflow-y-auto p-2" style={{ scrollbarWidth: 'thin' }}>
           <div className="text-gray-600 text-xs mb-2 uppercase tracking-wide px-1">
             {bench.length === 0
-              ? (lang === 'zh' ? '无替补' : 'No bench players')
-              : (lang === 'zh' ? '选择替补' : 'Select replacement')}
+              ? t(T.simulate.noBenchSub, lang)
+              : t(T.simulate.selectSub, lang)}
           </div>
           <div className="flex flex-col gap-1.5">
             {bench.map(p => {
@@ -438,11 +498,11 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
                     </div>
                     <div className="flex gap-2 text-xs" style={{ fontSize: 10 }}>
                       <span className="text-orange-400">
-                        {lang === 'zh' ? '进' : 'ATK'} <span className="font-bold">{effAtk}</span>
+                        {t(T.shared.atk, lang)} <span className="font-bold">{effAtk}</span>
                         {pen > 0 && <span className="text-gray-600 ml-0.5">({p.offenseRating})</span>}
                       </span>
                       <span className="text-blue-400">
-                        {lang === 'zh' ? '防' : 'DEF'} <span className="font-bold">{effDef}</span>
+                        {t(T.shared.def, lang)} <span className="font-bold">{effDef}</span>
                         {pen > 0 && <span className="text-gray-600 ml-0.5">({p.defenseRating})</span>}
                       </span>
                       <span className="text-gray-600">{(p.positions ?? [p.position]).join('/')}</span>
@@ -545,7 +605,8 @@ function PlayRow({ play, isNew, lang }) {
 }
 
 // ─── Box score table ──────────────────────────────────────────────────────────
-function BoxScoreTable({ players, boxEntries, label, lang }) {
+function BoxScoreTable({ players, starterIds, boxEntries, label, lang }) {
+  const didNotPlay = lang === 'zh' ? '未上场' : 'DNP'
   return (
     <div className="mb-4">
       <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1 px-2">{label}</div>
@@ -553,6 +614,7 @@ function BoxScoreTable({ players, boxEntries, label, lang }) {
         <thead>
           <tr className="text-gray-500 border-b border-gray-800">
             <th className="text-left px-2 py-1 font-medium">{t(T.boxScore.player, lang)}</th>
+            <th className="px-2 py-1 text-right font-medium text-gray-500">{t(T.shared.min, lang)}</th>
             <th className="px-2 py-1 text-right font-medium text-orange-400">{t(T.shared.pts, lang)}</th>
             <th className="px-2 py-1 text-right font-medium text-blue-400">{t(T.shared.reb, lang)}</th>
             <th className="px-2 py-1 text-right font-medium text-green-400">{t(T.shared.ast, lang)}</th>
@@ -565,23 +627,32 @@ function BoxScoreTable({ players, boxEntries, label, lang }) {
         </thead>
         <tbody>
           {players.map(p => {
+            const isStarter = starterIds?.has(p.id) ?? true
             const b = boxEntries?.[p.id]
-            if (!b) return null
-            const played = b.pts > 0 || b.reb > 0 || b.ast > 0 || b.fga > 0 || b.stl > 0 || b.blk > 0
+            const played = b && (b.pts > 0 || b.reb > 0 || b.fga > 0 || b.stl > 0 || b.blk > 0 || b.appearances > 0)
             return (
-              <tr key={p.id} className="border-b border-gray-800/50 hover:bg-white/3" style={{ opacity: played ? 1 : 0.4 }}>
+              <tr key={p.id} className="border-b border-gray-800/50 hover:bg-white/3" style={{ opacity: (isStarter || played) ? 1 : 0.35 }}>
                 <td className="px-2 py-1 text-white font-medium">
                   {lang === 'zh' ? getPlayerShortName(p, 'zh') : `${p.first_name?.[0] ?? ''}. ${p.last_name}`}
-                  <span className="text-gray-600 ml-1">{p.position}</span>
+                  <span className="text-gray-600 ml-1">{p.playingAs ?? p.position}</span>
+                  {!isStarter && played && <span className="text-gray-600 ml-1 text-xs">OUT</span>}
+                  {!isStarter && !played && <span className="text-gray-700 ml-1 text-xs">DNP</span>}
                 </td>
-                <td className="px-2 py-1 text-right text-orange-300 font-bold">{b.pts}</td>
-                <td className="px-2 py-1 text-right text-blue-300">{b.reb}</td>
-                <td className="px-2 py-1 text-right text-green-300">{b.ast}</td>
-                <td className="px-2 py-1 text-right text-yellow-300">{b.stl}</td>
-                <td className="px-2 py-1 text-right text-purple-300">{b.blk}</td>
-                <td className="px-2 py-1 text-right text-red-400">{b.to}</td>
-                <td className="px-2 py-1 text-right text-gray-400">{b.fgm}/{b.fga}</td>
-                <td className="px-2 py-1 text-right text-gray-400">{b.fg3m}/{b.fg3a}</td>
+                {b ? (
+                  <>
+                    <td className="px-2 py-1 text-right text-gray-500">{b.min ?? 0}</td>
+                    <td className="px-2 py-1 text-right text-orange-300 font-bold">{b.pts}</td>
+                    <td className="px-2 py-1 text-right text-blue-300">{b.reb}</td>
+                    <td className="px-2 py-1 text-right text-green-300">{b.ast}</td>
+                    <td className="px-2 py-1 text-right text-yellow-300">{b.stl}</td>
+                    <td className="px-2 py-1 text-right text-purple-300">{b.blk}</td>
+                    <td className="px-2 py-1 text-right text-red-400">{b.to}</td>
+                    <td className="px-2 py-1 text-right text-gray-400">{b.fgm}/{b.fga}</td>
+                    <td className="px-2 py-1 text-right text-gray-400">{b.fg3m}/{b.fg3a}</td>
+                  </>
+                ) : (
+                  <td colSpan={9} className="px-2 py-1 text-right text-gray-700 text-xs">{didNotPlay}</td>
+                )}
               </tr>
             )
           })}
@@ -613,15 +684,26 @@ export default function Simulate() {
   const [isPaused, setIsPaused]             = useState(false)
   const [pauseCountdown, setPauseCountdown] = useState(PAUSE_SECONDS)
   const [showLiveBoxScore, setShowLiveBoxScore] = useState(false)
+  const [autoSim, setAutoSim]               = useState(false)
   // swapTarget: { player, rect, side }
   const [swapTarget, setSwapTarget]         = useState(null)
 
-  const logRef        = useRef(null)
-  const intervalRef   = useRef(null)
-  const pauseTimerRef = useRef(null)
+  const logRef           = useRef(null)
+  const intervalRef      = useRef(null)
+  const pauseTimerRef    = useRef(null)
+  const lastAutoSubRef   = useRef(null) // { playerId, revealedWhen } — prevent same-tick re-sub
+  const benchedAtRef     = useRef({})  // { [playerId]: { revealedWhen, energyWhenBenched } }
+  const startersRef      = useRef(starters)
+  useEffect(() => { startersRef.current = starters }, [starters])
   // Hold gameResult in a ref so startInterval closure can access the latest value
   const gameResultRef = useRef(null)
   useEffect(() => { gameResultRef.current = gameResult }, [gameResult])
+
+  // Final box score computed from ALL plays (handles subs correctly)
+  const finalBoxScore = useMemo(() => {
+    if (!gameResult?.plays) return null
+    return computeFinalBoxScore(gameResult.plays)
+  }, [gameResult])
 
   const speed = SPEEDS[speedIdx].ms
 
@@ -677,11 +759,79 @@ export default function Simulate() {
     }
   }, [revealed, tab])
 
+  // ── Auto-sim: continuously sub tired players, bench players recover energy ──
+  const AUTO_SUB_THRESHOLD  = 38
+  const BENCH_RECOVERY_RATE = 1.5 // energy % recovered per play while on bench
+
+  useEffect(() => {
+    if (!autoSim || !isAnimating || isPaused || isDone || !lastPlay) return
+    const energies = liveMyEnergy ?? {}
+    const currentStarters = startersRef.current
+
+    for (const p of myStartersList) {
+      // Don't re-sub the same player we just subbed within the last 8 plays
+      // (prevents same-tick double-trigger before React re-renders the new lineup)
+      if (lastAutoSubRef.current?.playerId === p.id &&
+          revealed - lastAutoSubRef.current.revealedWhen < 8) continue
+
+      const energy = energies[p.id] ?? 100
+      if (energy >= AUTO_SUB_THRESHOLD) continue
+
+      const pos = p.playingAs ?? p.position
+
+      // Compute recovered energies for bench players
+      const recoveredEnergies = { ...energies }
+      for (const [id, info] of Object.entries(benchedAtRef.current)) {
+        const playsOnBench = revealed - info.revealedWhen
+        recoveredEnergies[id] = Math.min(100, info.energyWhenBenched + playsOnBench * BENCH_RECOVERY_RATE)
+      }
+
+      // Find best available bench player (by effective rating × energy × pos-match)
+      const sorted = [...bench].sort((a, bPlayer) => {
+        const pmA  = getPosMismatchMult(a.position, pos, a.positions)
+        const pmB  = getPosMismatchMult(bPlayer.position, pos, bPlayer.positions)
+        const eneA = getEnergyMultiplier(recoveredEnergies[a.id] ?? 100)
+        const eneB = getEnergyMultiplier(recoveredEnergies[bPlayer.id] ?? 100)
+        const effA = ((a.offenseRating ?? 0) + (a.defenseRating ?? 0)) * pmA * eneA
+        const effB = ((bPlayer.offenseRating ?? 0) + (bPlayer.defenseRating ?? 0)) * pmB * eneB
+        return effB - effA
+      })
+      const sub = sorted[0]
+      if (!sub) continue
+
+      // Record that p is going to bench
+      benchedAtRef.current[p.id] = { revealedWhen: revealed, energyWhenBenched: energy }
+      lastAutoSubRef.current = { playerId: p.id, revealedWhen: revealed }
+
+      assign(pos, sub)
+
+      const manualList = POS_ORDER.map(slotPos => {
+        if (slotPos === pos) return { ...sub, playingAs: slotPos }
+        const existing = currentStarters[slotPos]
+        if (!existing || existing.id === p.id || existing.id === sub.id) return null
+        return { ...existing, playingAs: slotPos }
+      }).filter(Boolean)
+
+      const state = {
+        score: lastPlay.score,
+        quarter: lastPlay.quarter,
+        myEnergies:  recoveredEnergies,
+        npcEnergies: lastPlay.energySnapshot.npcTeam,
+      }
+      const newResult = resumeSimulation(visiblePlays, manualList, currentNpcActive, remainingNpcBench, state)
+      setGameResult(newResult)
+      break // one sub per tick; next tick handles any remaining tired players
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealed, autoSim])
+
   // ── Handlers ────────────────────────────────────────────────────────────
   function handleSimulate() {
     if (!hasFullLineup) return
     clearInterval(intervalRef.current)
     clearInterval(pauseTimerRef.current)
+    lastAutoSubRef.current = null
+    benchedAtRef.current   = {}
     const result = simulateGame(myStartersList, npcStarters, [...npcBench])
     setGameResult(result)
     setRevealed(0)
@@ -695,6 +845,8 @@ export default function Simulate() {
   function handleRestart() {
     clearInterval(intervalRef.current)
     clearInterval(pauseTimerRef.current)
+    lastAutoSubRef.current = null
+    benchedAtRef.current   = {}
     setGameResult(null)
     setRevealed(0)
     setIsAnimating(false)
@@ -745,28 +897,41 @@ export default function Simulate() {
 
   function handleSwap(newPlayer) {
     if (!swapTarget) return
-    const pos = swapTarget.player.playingAs ?? swapTarget.player.position
-    assign(pos, newPlayer)
+    const pos           = swapTarget.player.playingAs ?? swapTarget.player.position
+    const swappedOutPlayer = swapTarget.player
     setSwapTarget(null)
 
+    // Compute recovered energies for bench players before applying the swap
+    const recoveredEnergies = { ...(lastPlay?.energySnapshot?.myTeam ?? {}) }
+    for (const [id, info] of Object.entries(benchedAtRef.current)) {
+      const playsOnBench = revealed - info.revealedWhen
+      recoveredEnergies[id] = Math.min(100, info.energyWhenBenched + playsOnBench * BENCH_RECOVERY_RATE)
+    }
+
+    // Record the player being sent to bench
+    if (lastPlay) {
+      const theirEnergy = recoveredEnergies[swappedOutPlayer.id] ?? 100
+      benchedAtRef.current[swappedOutPlayer.id] = { revealedWhen: revealed, energyWhenBenched: theirEnergy }
+    }
+
+    assign(pos, newPlayer)
+
     if (gameResult && lastPlay) {
-      // Build updated lineup manually (assign() is async state update)
       const manualList = POS_ORDER.map(p => {
         if (p === pos) return { ...newPlayer, playingAs: pos }
         const existing = starters[p]
-        if (!existing || existing.id === swapTarget.player.id || existing.id === newPlayer.id) return null
+        if (!existing || existing.id === swappedOutPlayer.id || existing.id === newPlayer.id) return null
         return { ...existing, playingAs: p }
       }).filter(Boolean)
 
       const state = {
         score: lastPlay.score,
         quarter: lastPlay.quarter,
-        myEnergies:  lastPlay.energySnapshot.myTeam,
+        myEnergies:  recoveredEnergies,
         npcEnergies: lastPlay.energySnapshot.npcTeam,
       }
       const newResult = resumeSimulation(visiblePlays, manualList, currentNpcActive, remainingNpcBench, state)
       setGameResult(newResult)
-      // Stay paused — countdown continues; user resumes manually or timer expires
     }
   }
 
@@ -884,10 +1049,19 @@ export default function Simulate() {
           {/* Controls */}
           <div className="flex-shrink-0 flex flex-wrap items-center gap-2 px-3 py-2 border-b border-gray-800/40">
             {!gameResult && (
-              <button onClick={handleSimulate}
-                className="px-4 py-1.5 bg-orange-500 hover:bg-orange-400 text-black font-bold rounded-lg text-sm transition-colors">
-                {t(T.simulate.simulateBtn, lang)}
-              </button>
+              <>
+                <button onClick={handleSimulate}
+                  className="px-4 py-1.5 bg-orange-500 hover:bg-orange-400 text-black font-bold rounded-lg text-sm transition-colors">
+                  {t(T.simulate.simulateBtn, lang)}
+                </button>
+                <button
+                  onClick={() => setAutoSim(v => !v)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${autoSim ? 'bg-green-700 text-white' : 'bg-gray-800 text-gray-500 hover:text-gray-300'}`}
+                  title={autoSim ? t(T.simulate.autoSimulate, lang) : t(T.simulate.autoSimulateOff, lang)}
+                >
+                  {autoSim ? t(T.simulate.autoSimulate, lang) : t(T.simulate.autoSimulateOff, lang)}
+                </button>
+              </>
             )}
 
             {gameResult && !isDone && (
@@ -900,30 +1074,36 @@ export default function Simulate() {
                     </button>
                   ))}
                 </div>
+                <button
+                  onClick={() => setAutoSim(v => !v)}
+                  className={`px-2 py-0.5 rounded text-xs font-semibold transition-colors ${autoSim ? 'bg-green-700 text-white' : 'bg-gray-800 text-gray-500 hover:text-gray-300'}`}
+                >
+                  {autoSim ? t(T.simulate.autoSimulate, lang) : t(T.simulate.autoSimulateOff, lang)}
+                </button>
 
                 {!isPaused ? (
                   <button onClick={handlePause}
                     className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-white rounded text-xs font-semibold transition-colors">
-                    ⏸ {lang === 'zh' ? '暂停' : 'Pause'}
+                    ⏸ {t(T.simulate.pause, lang)}
                   </button>
                 ) : (
                   <div className="flex items-center gap-2">
                     <button onClick={handleResume}
                       className="px-3 py-1 bg-green-700 hover:bg-green-600 text-white rounded text-xs font-semibold transition-colors">
-                      ▶ {lang === 'zh' ? '继续' : 'Resume'}
+                      ▶ {t(T.simulate.resume, lang)}
                     </button>
                     <span className="text-yellow-400 text-xs">
-                      {lang === 'zh' ? `${pauseCountdown}秒后自动继续` : `Auto in ${pauseCountdown}s`}
+                      {t(T.simulate.autoResume, lang, pauseCountdown)}
                     </span>
                     <button
-                    onClick={() => setShowLiveBoxScore(v => !v)}
-                    className={`px-2 py-0.5 rounded text-xs transition-colors ${showLiveBoxScore ? 'bg-blue-700 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
-                  >
-                    {lang === 'zh' ? '数据' : 'Stats'}
-                  </button>
-                  <span className="text-gray-600 text-xs">
-                    {lang === 'zh' ? '— 点击球员换人' : '— click a player to sub'}
-                  </span>
+                      onClick={() => setShowLiveBoxScore(v => !v)}
+                      className={`px-2 py-0.5 rounded text-xs transition-colors ${showLiveBoxScore ? 'bg-blue-700 text-white' : 'bg-gray-800 text-gray-400 hover:text-white'}`}
+                    >
+                      {t(T.simulate.statsBtn, lang)}
+                    </button>
+                    <span className="text-gray-600 text-xs">
+                      {t(T.simulate.clickToSub, lang)}
+                    </span>
                   </div>
                 )}
               </>
@@ -972,10 +1152,22 @@ export default function Simulate() {
               </div>
             )}
 
-            {tab === 'box' && isDone && (
+            {tab === 'box' && isDone && finalBoxScore && (
               <div className="h-full overflow-y-auto py-2 px-2">
-                <BoxScoreTable players={myStartersList} boxEntries={gameResult.boxScore.myTeam} label={t(T.simulate.myTeamLabel, lang)} lang={lang} />
-                <BoxScoreTable players={[...npcStarters, ...npcBench]} boxEntries={gameResult.boxScore.npcTeam} label={NPC_TEAM_SHORT} lang={lang} />
+                <BoxScoreTable
+                  players={[...myStartersList, ...bench]}
+                  starterIds={new Set(myStartersList.map(p => p.id))}
+                  boxEntries={finalBoxScore.myTeam}
+                  label={t(T.simulate.myTeamLabel, lang)}
+                  lang={lang}
+                />
+                <BoxScoreTable
+                  players={[...npcStarters, ...npcBench]}
+                  starterIds={new Set(npcStarters.map(p => p.id))}
+                  boxEntries={finalBoxScore.npcTeam}
+                  label={NPC_TEAM_SHORT}
+                  lang={lang}
+                />
               </div>
             )}
           </div>

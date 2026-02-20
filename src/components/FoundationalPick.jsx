@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import PlayerAvatar from './PlayerAvatar'
 import TierBadge from './TierBadge'
+import PlayerStatsPopup from './PlayerStatsPopup'
 import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerName } from '../data/playerNames'
@@ -17,12 +18,19 @@ function getTierBorderColor(tierName) {
 export default function FoundationalPick({ sPlayers, onPick }) {
   const { lang } = useSettings()
   const [selected, setSelected] = useState(null)
+  const [hoverState, setHoverState] = useState(null) // { player, rect }
+  const cardRefs = useRef({})
 
   const stat = (val) => val != null ? Number(val).toFixed(1) : '—'
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col items-center px-4 py-12">
       <h1 className="text-4xl font-bold mb-1">范特西篮球</h1>
+
+      {/* Hover popup (portal) */}
+      {hoverState && (
+        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} lang={lang} />
+      )}
 
       <div className="bg-gray-900 border border-yellow-400/30 rounded-2xl p-6 max-w-3xl w-full mt-6">
         <div className="flex items-center gap-3 mb-2">
@@ -45,7 +53,13 @@ export default function FoundationalPick({ sPlayers, onPick }) {
             return (
               <button
                 key={player.id}
+                ref={el => { cardRefs.current[player.id] = el }}
                 onClick={() => setSelected(player)}
+                onMouseEnter={() => {
+                  const el = cardRefs.current[player.id]
+                  if (el) setHoverState({ player, rect: el.getBoundingClientRect() })
+                }}
+                onMouseLeave={() => setHoverState(null)}
                 style={{
                   borderColor: isSelected ? '#facc15' : getTierBorderColor(player.tier?.name),
                   boxShadow: isSelected ? `0 0 14px 3px rgba(250,204,21,0.25)` : `0 0 10px 2px ${getTierBorderColor(player.tier?.name)}33`,

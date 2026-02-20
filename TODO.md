@@ -5,8 +5,7 @@
 ---
 
 ## Bugs 🐛
-1. No way to sell / release players from the roster — needs a proper UX design (sell for 80% salary refund, with confirmation).
-2. 2 reset buttons in the myTeam page
+_(all fixed — see Done ✅)_
 
 ---
 
@@ -14,7 +13,6 @@
 > Refactoring and code quality — no new behavior, just cleaner internals.
 
 1. Refactor tier colors into a single source of truth — currently changing B tier color requires edits in 6+ files (tiers.js, PlayerSlotCard.jsx, MyTeam.jsx, Simulate.jsx, Market.jsx, npcTeam.js). Should be one constant/map.
-2. Consolidate all hardcoded bilingual strings into i18n.js — many components (PlayerStatsPopup, SwapDrawer, BenchSwapPanel in Simulate, etc.) embed zh/en strings inline (e.g. `lang === 'zh' ? '进攻' : 'ATK'`) instead of using the T + t() system.
 
 ---
 
@@ -23,7 +21,10 @@
 
 1. The salary distribution needs to be re-done — the best player should be ~700K (like real NBA scale), and remember this will later move to backend. Frontend only shows the player stats.
 2. Add drag-and-drop swap in My Team — currently requires: click slot → pick from bench → then re-add displaced player manually.
-3. Hover popup (PlayerStatsPopup) on FoundationalPick and TeamReveal init stages — currently no stats on hover during setup.
+3. ~~Hover popup (PlayerStatsPopup) on FoundationalPick and TeamReveal init stages~~ ✅ Done
+4. Auto-assign on My Team should be based on ability and position. (Position comes first and then ability)
+5. ~~Auto-simulate mode — toggle button; auto-subs tired players continuously, bench players recover energy~~ ✅ Done
+6. Add sell/release button for bench players — needs UX design before implementation.
 
 ---
 
@@ -32,11 +33,20 @@
 
 1. Add more NPC teams (start with 5 total) — beating each team gives a reward (e.g. 75% of Jokic's salary). Include classic rosters like 1998 MJ Bulls (salary cap ~30M).
 
-2. The overall CSS is not good cross screen. For example in my 4k screen. There are a lot of space, but in 2k screen. Some content are seem too big
+2. The overall CSS is not good cross screen. For example in my 4k screen. There are a lot of space, but in 2k screen. Some content are seem too big.
 
 ---
 
 ## Done ✅
+- [x] Bug: Box score at game end showed empty stats — now computed from ALL plays via computeFinalBoxScore(); subbed-out players show correct stats
+- [x] Bug: Box score missing MIN column — added, approximated as appearances × 1.5 capped at 48
+- [x] Bug: Auto-simulate swapped players out but never back — now continuous; removed permanent blocklist, bench players recover 1.5% energy/play; best available bench player chosen by ATK+DEF × pos-match × energy
+- [x] Bug: 我的队 still in navbar — hardcoded zh string in Navbar.jsx fixed to 我的球队
+- [x] Bug: Reset button showing in production — now DEV only (hard reset); soft reset removed entirely
+- [x] Bug: Player names in simulate play-by-play didn't respect language — now uses Chinese names in zh descriptions via getPlayerShortName
+- [x] Bug: MyTeam SwapDrawer position modal hardcoded English — all strings now use i18n (position label, current player, remove btn, bench labels)
+- [x] Tech Debt: Consolidated all BenchSwapPanel + pause/resume inline zh/en strings into i18n.js
+- [x] Feature: Hover popup (PlayerStatsPopup) on FoundationalPick + TeamReveal init screens
 - [x] Bug: Quarter scoreboard showed all 4 quarters pre-computed from game start — now shows only completed quarters + live current quarter
 - [x] Bug: B tier color (cyan) too similar to A tier (blue) — changed to teal
 - [x] Bug: MyTeam hover popup ignored language setting — name and all stat labels now respect lang

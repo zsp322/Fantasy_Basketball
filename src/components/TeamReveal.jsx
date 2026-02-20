@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PlayerAvatar from './PlayerAvatar'
 import TierBadge from './TierBadge'
+import PlayerStatsPopup from './PlayerStatsPopup'
 import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerName } from '../data/playerNames'
@@ -19,6 +20,8 @@ export default function TeamReveal({ foundational, initialAutoPlayers, onConfirm
   const [autoPlayers, setAutoPlayers] = useState(initialAutoPlayers)
   const [revealedCount, setRevealedCount] = useState(0)
   const [regenerating, setRegenerating] = useState(false)
+  const [hoverState, setHoverState] = useState(null) // { player, rect }
+  const cardRefs = useRef({})
 
   const allPlayers = [foundational, ...autoPlayers]
   const allRevealed = revealedCount >= allPlayers.length
@@ -34,6 +37,7 @@ export default function TeamReveal({ foundational, initialAutoPlayers, onConfirm
 
   function handleRegenerate() {
     if (regenerating) return
+    setHoverState(null)
     setRegenerating(true)
     // Instantly set revealedCount to 1 — foundational stays, all auto cards fade out
     setRevealedCount(1)
@@ -50,6 +54,11 @@ export default function TeamReveal({ foundational, initialAutoPlayers, onConfirm
       <h1 className="text-4xl font-bold mb-1">范特西篮球</h1>
       <p className="text-gray-400 text-sm mb-10">{t(T.teamReveal.title, lang)}</p>
 
+      {/* Hover popup (portal) */}
+      {hoverState && (
+        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} lang={lang} />
+      )}
+
       {/* Player grid */}
       <div className="flex gap-4 flex-wrap justify-center max-w-4xl w-full mb-10">
         {allPlayers.map((player, i) => {
@@ -59,10 +68,18 @@ export default function TeamReveal({ foundational, initialAutoPlayers, onConfirm
           const glowColor = isFoundational
             ? 'rgba(250,204,21,0.3)'
             : `${getTierBorderColor(player.tier?.name)}44`
+          const cardKey = `${player.id}-${i}`
 
           return (
             <div
-              key={`${player.id}-${i}`}
+              key={cardKey}
+              ref={el => { cardRefs.current[cardKey] = el }}
+              onMouseEnter={() => {
+                if (!revealed) return
+                const el = cardRefs.current[cardKey]
+                if (el) setHoverState({ player, rect: el.getBoundingClientRect() })
+              }}
+              onMouseLeave={() => setHoverState(null)}
               style={{
                 opacity: revealed ? 1 : 0,
                 transform: revealed ? 'translateY(0) scale(1)' : 'translateY(20px) scale(0.92)',

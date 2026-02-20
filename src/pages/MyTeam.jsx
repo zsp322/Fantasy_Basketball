@@ -138,15 +138,9 @@ export default function MyTeam({ team }) {
         </div>
       </div>
 
-      {/* ── Top-right: reset buttons ── */}
-      <div className="absolute top-3 right-3 z-20 flex flex-col gap-1.5 items-end">
-        <button
-          onClick={() => { if (window.confirm(t(T.myTeam.resetConfirm, lang))) resetTeam() }}
-          className="text-xs text-gray-600 hover:text-red-400 bg-black/60 border border-gray-700/50 px-2.5 py-1.5 rounded-lg transition-colors"
-        >
-          {t(T.myTeam.reset, lang)}
-        </button>
-        {import.meta.env.DEV && (
+      {/* ── Top-right: hard reset button (DEV only) ── */}
+      {import.meta.env.DEV && (
+        <div className="absolute top-3 right-3 z-20">
           <button
             onClick={() => {
               if (window.confirm(t(T.myTeam.hardResetConfirm, lang))) {
@@ -158,8 +152,8 @@ export default function MyTeam({ team }) {
           >
             {t(T.myTeam.hardReset, lang)}
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* ── Bottom bench strip ── */}
       <div

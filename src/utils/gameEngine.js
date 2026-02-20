@@ -1,4 +1,5 @@
 import { pickPlayText } from '../data/playTexts.js'
+import { getPlayerShortName } from '../data/playerNames.js'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const QUARTERS = 4
@@ -103,8 +104,10 @@ function getFtChance(avg) {
 // ─── Play descriptions ────────────────────────────────────────────────────────
 // Returns { en, zh } with player names already substituted in.
 function buildDescription(play) {
-  const atk    = play.attacker.last_name
-  const def    = play.defender?.last_name ?? ''
+  const atkEn  = play.attacker.last_name
+  const defEn  = play.defender?.last_name ?? ''
+  const atkZh  = getPlayerShortName(play.attacker, 'zh')
+  const defZh  = play.defender ? getPlayerShortName(play.defender, 'zh') : ''
   const tired  = getEnergyLabel(play.atkEnergyAfter)
   const texts  = pickPlayText(play)
 
@@ -114,8 +117,8 @@ function buildDescription(play) {
                 : tired === '(very tired)' ? '（十分疲惫）'
                 : tired === '(EXHAUSTED)'  ? '（精疲力竭）' : ''
 
-  let en = texts.en.replace('{atk}', `${atk}${tiredEn}`).replace('{def}', def)
-  let zh = texts.zh.replace('{atk}', `${atk}${tiredZh}`).replace('{def}', def)
+  let en = texts.en.replace('{atk}', `${atkEn}${tiredEn}`).replace('{def}', defEn)
+  let zh = texts.zh.replace('{atk}', `${atkZh}${tiredZh}`).replace('{def}', defZh)
 
   // Append FT result
   if (play.shotType === 'FT') {
@@ -386,9 +389,9 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
   const myEnergyMap  = { ...state.myEnergies }
   const npcEnergyMap = { ...state.npcEnergies }
 
-  // Any new player (just subbed in by the human) starts with fresh-ish legs
+  // Any new player (just subbed in by the human) starts with fresh legs
   for (const p of myLineup) {
-    if (myEnergyMap[p.id] == null) myEnergyMap[p.id] = 80
+    if (myEnergyMap[p.id] == null) myEnergyMap[p.id] = 100
   }
   for (const p of [...npcLineup, ...npcBenchInput]) {
     if (npcEnergyMap[p.id] == null) npcEnergyMap[p.id] = 100

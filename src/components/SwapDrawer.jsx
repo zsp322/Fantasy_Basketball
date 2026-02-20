@@ -3,6 +3,7 @@ import TierBadge from './TierBadge'
 import { useSettings } from '../contexts/SettingsContext'
 import { getPlayerName } from '../data/playerNames'
 import { getPosMismatchMult } from '../utils/gameEngine'
+import { T, t } from '../data/i18n'
 
 export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign, onRemove, onClose }) {
   const { lang } = useSettings()
@@ -36,10 +37,12 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
           <div>
             <h3 className="text-white font-bold text-lg">
-              {pos} Position
+              {t(T.swapDrawer.positionLabel, lang, pos)}
             </h3>
             <p className="text-gray-400 text-sm">
-              {currentPlayer ? `Currently: ${getPlayerName(currentPlayer, lang)}` : 'Empty slot — pick a player'}
+              {currentPlayer
+                ? t(T.swapDrawer.currently, lang, getPlayerName(currentPlayer, lang))
+                : t(T.swapDrawer.emptySlot, lang)}
             </p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white text-2xl px-2">✕</button>
@@ -61,7 +64,7 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
                 onClick={() => { onRemove(pos); onClose() }}
                 className="text-xs text-red-400 hover:text-red-300 border border-red-800 px-2 py-1 rounded-lg ml-1"
               >
-                Remove
+                {t(T.swapDrawer.removeBtn, lang)}
               </button>
             </div>
           </div>
@@ -71,8 +74,8 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
         <div className="overflow-y-auto flex-1 px-4 py-3">
           <p className="text-gray-500 text-xs mb-3 uppercase tracking-wider">
             {sortedBench.length === 0
-              ? 'No bench players available'
-              : lang === 'zh' ? '选择替补（按实际能力排序）' : 'Select from bench (sorted by effective rating)'}
+              ? t(T.swapDrawer.noBench, lang)
+              : t(T.swapDrawer.selectBench, lang)}
           </p>
           <div className="flex flex-col gap-2">
             {sortedBench.map(player => {
@@ -107,12 +110,12 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
                     </div>
                     <div className="flex gap-3 text-xs">
                       <span className="text-orange-400">
-                        {lang === 'zh' ? '进攻' : 'ATK'}{' '}
+                        {t(T.shared.atk, lang)}{' '}
                         <span className="font-bold">{effAtk}</span>
                         {pen > 0 && <span className="text-gray-600 ml-0.5">({player.offenseRating})</span>}
                       </span>
                       <span className="text-blue-400">
-                        {lang === 'zh' ? '防守' : 'DEF'}{' '}
+                        {t(T.shared.def, lang)}{' '}
                         <span className="font-bold">{effDef}</span>
                         {pen > 0 && <span className="text-gray-600 ml-0.5">({player.defenseRating})</span>}
                       </span>
