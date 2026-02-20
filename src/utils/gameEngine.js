@@ -12,10 +12,14 @@ const SUB_THRESHOLD = 38
 // e.g. a C playing PG → only 20% effective; SG playing SF → 85%.
 const POS_IDX = { PG: 0, SG: 1, SF: 2, PF: 3, C: 4 }
 
-export function getPosMismatchMult(naturalPos, slotPos) {
-  if (!naturalPos || !slotPos || naturalPos === slotPos) return 1.0
-  const diff = Math.abs((POS_IDX[naturalPos] ?? 2) - (POS_IDX[slotPos] ?? 2))
-  return [1.0, 0.85, 0.65, 0.45, 0.20][diff] ?? 1.0
+// eligiblePositions: optional array of all slots the player can fill without penalty.
+// If slotPos is in that list → no penalty. Otherwise use minimum distance from any eligible slot.
+export function getPosMismatchMult(naturalPos, slotPos, eligiblePositions) {
+  if (!naturalPos || !slotPos) return 1.0
+  const eligible = eligiblePositions ?? [naturalPos]
+  if (eligible.includes(slotPos)) return 1.0
+  const minDiff = Math.min(...eligible.map(p => Math.abs((POS_IDX[p] ?? 2) - (POS_IDX[slotPos] ?? 2))))
+  return [1.0, 0.85, 0.65, 0.45, 0.20][minDiff] ?? 1.0
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -38,10 +42,10 @@ function weightedPick(players, weightFn) {
   return players[players.length - 1]
 }
 
-// 80% chance: match by position, else weighted by defense
+// 80% chance: match by position (using eligible positions array), else weighted by defense
 function posMatchPick(players, pos, weightFn) {
   if (Math.random() < 0.80) {
-    const same = players.find(p => p.position === pos)
+    const same = players.find(p => (p.positions ?? [p.position]).includes(pos))
     if (same) return same
   }
   return weightedPick(players, weightFn)
@@ -161,8 +165,8 @@ function simulatePossession(attacker, defender, atkEnergy, defEnergy) {
   const defMult    = getEnergyMultiplier(defEnergy)
 
   // Position mismatch: player in wrong slot loses effectiveness
-  const atkPosMult = getPosMismatchMult(attacker.position, attacker.playingAs)
-  const defPosMult = getPosMismatchMult(defender.position, defender.playingAs)
+  const atkPosMult = getPosMismatchMult(attacker.position, attacker.playingAs, attacker.positions)
+  const defPosMult = getPosMismatchMult(defender.position, defender.playingAs, defender.positions)
 
   const avg = attacker.avg ?? {}
 

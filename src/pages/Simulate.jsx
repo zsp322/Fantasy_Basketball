@@ -49,7 +49,7 @@ function EnergyBar({ value }) {
 function StatTooltip({ player, energyPct, rect, side, lang }) {
   const energy  = energyPct ?? 100
   const eMult   = getEnergyMultiplier(energy)
-  const pMult   = getPosMismatchMult(player.position, player.playingAs ?? player.position)
+  const pMult   = getPosMismatchMult(player.position, player.playingAs ?? player.position, player.positions)
   const baseAtk = player.offenseRating ?? 0
   const baseDef = player.defenseRating ?? 0
   const effAtk  = Math.round(baseAtk * pMult * eMult)
@@ -76,6 +76,10 @@ function StatTooltip({ player, energyPct, rect, side, lang }) {
         padding: '10px 12px', fontSize: 11, pointerEvents: 'none',
       }}
     >
+      {/* Player name */}
+      <div style={{ color: '#f1f5f9', fontWeight: 700, fontSize: 12, marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {getPlayerShortName(player, lang)}
+      </div>
       <div style={{ color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6, fontSize: 9 }}>
         {ui.title}
       </div>
@@ -117,7 +121,7 @@ function StatTooltip({ player, energyPct, rect, side, lang }) {
       {/* Position mismatch */}
       {hasMismatch && (
         <div style={{ marginTop: 8, borderTop: '1px solid #1f2937', paddingTop: 8, color: mismatchPct >= 35 ? '#f87171' : '#fbbf24', fontWeight: 600, fontSize: 10 }}>
-          {player.position}→{player.playingAs} {ui.penalty} −{mismatchPct}%
+          {(player.positions ?? [player.position]).join('/')}→{player.playingAs} {ui.penalty} −{mismatchPct}%
         </div>
       )}
 
@@ -138,12 +142,13 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
   const borderColor = getTierBorder(tierName)
   const isGassed    = energyPct != null && energyPct < 30
 
-  const naturalPos = player.position
-  const slotPos    = player.playingAs ?? player.position
-  const hasMismatch   = naturalPos !== slotPos
-  const pMult         = getPosMismatchMult(naturalPos, slotPos)
-  const mismatchPct   = Math.round((1 - pMult) * 100)
-  const mismatchSevere = pMult < 0.65
+  const eligiblePositions = player.positions ?? [player.position]
+  const slotPos           = player.playingAs ?? player.position
+  const hasMismatch       = !eligiblePositions.includes(slotPos)
+  const pMult             = getPosMismatchMult(player.position, slotPos, eligiblePositions)
+  const mismatchPct       = Math.round((1 - pMult) * 100)
+  const mismatchSevere    = pMult < 0.65
+  const posLabel          = eligiblePositions.join('/')
 
   function handleMouseEnter() {
     if (cardRef.current) setHoverRect(cardRef.current.getBoundingClientRect())
@@ -203,7 +208,7 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
                 ${mismatchSevere ? 'bg-red-900/90 text-red-300' : 'bg-amber-900/90 text-amber-300'}`}
               style={{ fontSize: '0.5rem', lineHeight: 1.4 }}
             >
-              {naturalPos}→{slotPos} −{mismatchPct}%
+              {posLabel}→{slotPos} −{mismatchPct}%
             </div>
           )}
 
@@ -222,7 +227,7 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
 
         {/* Position + energy % */}
         <div className="text-gray-500 text-center" style={{ fontSize: 9 }}>
-          {slotPos !== naturalPos ? `${naturalPos}·${slotPos}` : naturalPos}
+          {hasMismatch ? `${posLabel}·${slotPos}` : posLabel}
           {energyPct != null ? ` · ${Math.round(energyPct)}%` : ''}
         </div>
 
@@ -403,7 +408,7 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
           </div>
           <div className="flex flex-col gap-1.5">
             {bench.map(p => {
-              const pm  = getPosMismatchMult(p.position, pos)
+              const pm  = getPosMismatchMult(p.position, pos, p.positions)
               const pen = Math.round((1 - pm) * 100)
               const severe = pen >= 35
               const mild   = pen > 0 && !severe
@@ -427,7 +432,7 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
                       <span className="text-white font-semibold text-xs truncate">{getPlayerName(p, lang)}</span>
                       {pen > 0 && (
                         <span className={`text-xs font-bold px-1 rounded ${severe ? 'bg-red-900/60 text-red-400' : 'bg-amber-900/60 text-amber-400'}`}>
-                          {p.position}→{pos} −{pen}%
+                          {(p.positions ?? [p.position]).join('/')}→{pos} −{pen}%
                         </span>
                       )}
                     </div>
@@ -440,7 +445,7 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
                         {lang === 'zh' ? '防' : 'DEF'} <span className="font-bold">{effDef}</span>
                         {pen > 0 && <span className="text-gray-600 ml-0.5">({p.defenseRating})</span>}
                       </span>
-                      <span className="text-gray-600">{p.position}</span>
+                      <span className="text-gray-600">{(p.positions ?? [p.position]).join('/')}</span>
                     </div>
                   </div>
                   <div className={`text-xs font-bold px-1 py-0.5 rounded text-black shrink-0 ${p.tier?.color ?? 'bg-gray-600'}`}>
@@ -603,7 +608,7 @@ export default function Simulate() {
   const [gameResult, setGameResult]         = useState(null)
   const [revealed, setRevealed]             = useState(0)
   const [isAnimating, setIsAnimating]       = useState(false)
-  const [speedIdx, setSpeedIdx]             = useState(1)
+  const [speedIdx, setSpeedIdx]             = useState(0)
   const [tab, setTab]                       = useState('log')
   const [isPaused, setIsPaused]             = useState(false)
   const [pauseCountdown, setPauseCountdown] = useState(PAUSE_SECONDS)

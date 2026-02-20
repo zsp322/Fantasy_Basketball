@@ -25,6 +25,7 @@ async function fetchAllRosters() {
         id: p.id,
         first_name: p.firstName,
         last_name: p.lastName,
+        height: p.height ?? null,         // inches — used for position resolution
         position: p.position?.abbreviation ?? '',
         headshot: p.headshot?.href ?? null,
         status: p.injuries?.[0]?.status ?? null,

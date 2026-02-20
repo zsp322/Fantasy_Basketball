@@ -1,3 +1,42 @@
+const EXACT_POS = new Set(['PG', 'SG', 'SF', 'PF', 'C'])
+
+// Maps raw ESPN position abbreviations (G, F, G/F, PF/C, etc.) to one of the
+// five standard slots. Uses player height (inches) as a tiebreaker for generic
+// G / F entries. Returns the PRIMARY (single) position.
+export function resolvePosition(rawPos, heightInches) {
+  if (!rawPos) return 'SF'
+  if (EXACT_POS.has(rawPos)) return rawPos
+  const h = heightInches ?? 78 // default 6'6" if unknown
+  const primary = rawPos.split('/')[0].trim()
+  if (EXACT_POS.has(primary)) return primary
+  if (primary === 'G') return h < 77 ? 'PG' : 'SG'  // split at 6'5"
+  if (primary === 'F') return h < 81 ? 'SF' : 'PF'  // split at 6'9"
+  return 'SF'
+}
+
+// Returns ALL eligible positions for a player (e.g. 'G/F' → ['PG','SG','SF','PF']).
+// Used to allow multi-position players to fill any of their natural slots without penalty.
+export function resolveEligiblePositions(rawPos) {
+  if (!rawPos) return ['SF']
+  if (EXACT_POS.has(rawPos)) return [rawPos]
+
+  // Generic single — eligible for both adjacent slots
+  if (rawPos === 'G') return ['PG', 'SG']
+  if (rawPos === 'F') return ['SF', 'PF']
+  if (rawPos === 'C') return ['C']
+
+  // Dual/multi strings like 'G/F', 'SF/PF', 'PF/C', 'PG/SG' …
+  const parts = rawPos.split('/').map(s => s.trim())
+  const result = []
+  for (const p of parts) {
+    if (EXACT_POS.has(p))  result.push(p)
+    else if (p === 'G')    result.push('PG', 'SG')
+    else if (p === 'F')    result.push('SF', 'PF')
+    else if (p === 'C')    result.push('C')
+  }
+  return [...new Set(result)] // deduplicate, preserve order
+}
+
 // Internal use only — drives tier assignment. Never display this in the UI.
 export function calcFantasyScore(avg) {
   if (!avg) return 0

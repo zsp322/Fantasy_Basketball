@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { fetchActivePlayers } from '../api/players'
-import { calcFantasyScore, calcOffenseRating, calcDefenseRating } from '../utils/scoring'
+import { calcFantasyScore, calcOffenseRating, calcDefenseRating, resolvePosition, resolveEligiblePositions } from '../utils/scoring'
 import { assignTiers } from '../utils/tiers'
 
-const CACHE_KEY = 'fbball_players_cache_v3' // bumped to include fga/fta/fgm for advanced ratings
+const CACHE_KEY = 'fbball_players_cache_v4' // bumped for height + position normalization
 const CACHE_TTL = 1000 * 60 * 60 // 1 hour
 
 export function usePlayers() {
@@ -31,6 +31,8 @@ export function usePlayers() {
 
         const withScores = raw.map(player => ({
           ...player,
+          position:       resolvePosition(player.position, player.height),   // primary slot (single string)
+          positions:      resolveEligiblePositions(player.position),          // all eligible slots (array)
           fantasyScore:   calcFantasyScore(player.avg),   // internal — tier assignment only
           offenseRating:  calcOffenseRating(player.avg),  // shown in UI
           defenseRating:  calcDefenseRating(player.avg),  // shown in UI

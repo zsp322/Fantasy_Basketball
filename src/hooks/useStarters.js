@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { resolvePosition, resolveEligiblePositions } from '../utils/scoring'
 
 export const POS_ORDER = ['PG', 'SG', 'SF', 'PF', 'C']
 const STORAGE_KEY = 'fbball_starters_v1'
@@ -13,21 +14,27 @@ function autoAssign(roster) {
   const map = {}
   const used = new Set()
 
-  // Pass 1: exact position matches
+  // Normalize positions for players loaded from localStorage (may have raw ESPN strings like 'G/F', 'PF/C')
+  const players = roster.map(p => ({
+    ...p,
+    position:  resolvePosition(p.position, p.height),
+    positions: p.positions ?? resolveEligiblePositions(p.position),
+  }))
+
+  // Pass 1: slot is any of the player's eligible positions
   for (const pos of POS_ORDER) {
-    const match = roster.find(p => !used.has(p.id) && p.position === pos)
+    const match = players.find(p => !used.has(p.id) && p.positions.includes(pos))
     if (match) { map[pos] = match; used.add(match.id) }
   }
 
-  // Pass 2: fill unfilled slots with nearest-position available player
+  // Pass 2: fill remaining slots — minimise distance across all eligible positions
   for (const pos of POS_ORDER) {
     if (map[pos]) continue
-    const available = roster.filter(p => !used.has(p.id))
+    const available = players.filter(p => !used.has(p.id))
     if (!available.length) break
-    // Sort by distance to slot position, then by offenseRating descending as tiebreak
     const best = [...available].sort((a, b) => {
-      const da = posDist(a.position, pos)
-      const db = posDist(b.position, pos)
+      const da = Math.min(...a.positions.map(ep => posDist(ep, pos)))
+      const db = Math.min(...b.positions.map(ep => posDist(ep, pos)))
       if (da !== db) return da - db
       return (b.offenseRating ?? 0) - (a.offenseRating ?? 0)
     })[0]

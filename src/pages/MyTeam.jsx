@@ -57,7 +57,7 @@ function BenchChip({ player, onDrop, lang = 'zh' }) {
           {getPlayerShortName(player, lang)}
         </div>
         <div className="text-gray-500 text-center" style={{ fontSize: 9 }}>
-          {player.position}
+          {(player.positions ?? [player.position]).join('/')}
         </div>
       </div>
 
