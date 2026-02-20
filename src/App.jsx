@@ -1,4 +1,18 @@
 import { useMemo, useState } from 'react'
+
+// Version guard — clears stale localStorage on app update, preserving user settings
+;(function enforceVersion() {
+  const VERSION_KEY = 'fbball_version'
+  if (localStorage.getItem(VERSION_KEY) !== __APP_VERSION__) {
+    const lang  = localStorage.getItem('fbball_lang')
+    const theme = localStorage.getItem('fbball_theme')
+    localStorage.clear()
+    localStorage.setItem(VERSION_KEY, __APP_VERSION__)
+    if (lang)  localStorage.setItem('fbball_lang',  lang)
+    if (theme) localStorage.setItem('fbball_theme', theme)
+    window.location.reload()
+  }
+})()
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import FoundationalPick from './components/FoundationalPick'
