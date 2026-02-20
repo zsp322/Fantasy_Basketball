@@ -19,18 +19,17 @@ function getTierBorderClass(tierName) {
   return 'border-gray-600'
 }
 
-function BenchChip({ player, onDrop, lang = 'zh' }) {
-  const [confirming, setConfirming] = useState(false)
+function BenchChip({ player, lang = 'zh' }) {
   const tierName = player.tier?.name
   const ringClass = getTierBorderClass(tierName)
 
   return (
-    <div className="relative flex-shrink-0 group">
+    <div className="relative flex-shrink-0">
       <div className="flex flex-col items-center gap-0.5">
         {/* Photo */}
         <div
           className={`relative rounded-lg border-2 ${ringClass} overflow-hidden bg-gray-900`}
-          style={{ width: 48, height: 48 }}
+          style={{ width: 58, height: 58 }}
         >
           {player.headshot ? (
             <img
@@ -53,45 +52,20 @@ function BenchChip({ player, onDrop, lang = 'zh' }) {
         </div>
 
         {/* Name */}
-        <div className="text-white font-semibold truncate text-center" style={{ fontSize: 10, maxWidth: 52 }}>
+        <div className="text-white font-semibold truncate text-center" style={{ fontSize: 11, maxWidth: 62 }}>
           {getPlayerShortName(player, lang)}
         </div>
-        <div className="text-gray-500 text-center" style={{ fontSize: 9 }}>
+        <div className="text-gray-500 text-center" style={{ fontSize: 10 }}>
           {(player.positions ?? [player.position]).join('/')}
         </div>
       </div>
-
-      {/* Sell button on hover */}
-      {confirming ? (
-        <div className="absolute -top-8 left-1/2 -translate-x-1/2 flex gap-1 z-20 whitespace-nowrap">
-          <button
-            onClick={() => onDrop(player.id)}
-            className="bg-green-700 hover:bg-green-600 text-white text-xs px-2 py-0.5 rounded"
-          >
-            {t(T.myTeam.sellFor, lang, parseFloat(((player.tier?.salary ?? 0) * 0.8).toFixed(1)))}
-          </button>
-          <button
-            onClick={() => setConfirming(false)}
-            className="bg-gray-700 text-gray-300 text-xs px-1.5 py-0.5 rounded"
-          >
-            ✕
-          </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => setConfirming(true)}
-          className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 hover:bg-green-900 border border-gray-600 hover:border-green-700 rounded-full text-gray-500 hover:text-green-400 text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-        >
-          $
-        </button>
-      )}
     </div>
   )
 }
 
 export default function MyTeam({ team }) {
   const { lang } = useSettings()
-  const { team: roster, totalSalary, capRemaining, cash, dropPlayer, resetTeam } = team
+  const { team: roster, totalSalary, capRemaining, cash, resetTeam } = team
   const { starters, assign, remove } = useStarters(roster)
   const [drawer, setDrawer] = useState(null)
   const [hoverState, setHoverState] = useState(null) // { player, rect }
@@ -193,8 +167,8 @@ export default function MyTeam({ team }) {
         style={{
           background:
             'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 60%, transparent 100%)',
-          paddingTop: 24,
-          paddingBottom: 10,
+          paddingTop: 32,
+          paddingBottom: 14,
           paddingLeft: 16,
           paddingRight: 16,
         }}
@@ -211,7 +185,7 @@ export default function MyTeam({ team }) {
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {bench.map(p => (
-              <BenchChip key={p.id} player={p} onDrop={dropPlayer} lang={lang} />
+              <BenchChip key={p.id} player={p} lang={lang} />
             ))}
           </div>
         )}

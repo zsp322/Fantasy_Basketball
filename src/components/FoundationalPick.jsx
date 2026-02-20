@@ -5,6 +5,15 @@ import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerName } from '../data/playerNames'
 
+function getTierBorderColor(tierName) {
+  if (!tierName) return '#374151'
+  if (['S+', 'S', 'S-'].includes(tierName)) return '#a855f7'
+  if (['A+', 'A', 'A-'].includes(tierName)) return '#60a5fa'
+  if (['B+', 'B', 'B-'].includes(tierName)) return '#14b8a6'
+  if (['C+', 'C', 'C-'].includes(tierName)) return '#4ade80'
+  return '#6b7280'
+}
+
 export default function FoundationalPick({ sPlayers, onPick }) {
   const { lang } = useSettings()
   const [selected, setSelected] = useState(null)
@@ -37,10 +46,14 @@ export default function FoundationalPick({ sPlayers, onPick }) {
               <button
                 key={player.id}
                 onClick={() => setSelected(player)}
-                className={`flex flex-col items-center gap-2 p-3 rounded-xl border text-center transition-all ${
+                style={{
+                  borderColor: isSelected ? '#facc15' : getTierBorderColor(player.tier?.name),
+                  boxShadow: isSelected ? `0 0 14px 3px rgba(250,204,21,0.25)` : `0 0 10px 2px ${getTierBorderColor(player.tier?.name)}33`,
+                }}
+                className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 text-center transition-all ${
                   isSelected
-                    ? 'border-yellow-400 bg-yellow-400/10 scale-105'
-                    : 'border-gray-700 bg-gray-800 hover:border-gray-500 hover:scale-102'
+                    ? 'bg-yellow-400/10 scale-105'
+                    : 'bg-gray-800 hover:scale-102 hover:brightness-110'
                 }`}
               >
                 <PlayerAvatar player={player} size="md" />

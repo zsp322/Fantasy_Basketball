@@ -47,6 +47,14 @@ export const T = {
     lockIn:      { en: 'Lock In →', zh: '确认选择 →' },
   },
 
+  // ── Team Reveal ────────────────────────────────────────────────────────────
+  teamReveal: {
+    title:        { en: 'Your roster is being assembled…', zh: '正在组建你的阵容…' },
+    cornerstone:  { en: '⭐ Cornerstone', zh: '⭐ 核心球员' },
+    startPlaying: { en: 'Start Playing →', zh: '开始游戏 →' },
+    shuffle:      { en: '↺ Shuffle', zh: '↺ 重新分配' },
+  },
+
   // ── My Team ────────────────────────────────────────────────────────────────
   myTeam: {
     cash:          { en: 'Cash',                  zh: '现金' },
