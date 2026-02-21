@@ -12,22 +12,12 @@ _(all fixed — see Done ✅)_
 _(all fixed — see Done ✅)_
 ---
 
-
-## Tech Debt 🔧
-> Refactoring and code quality — no new behavior, just cleaner internals.
-
-1. Refactor tier colors into a single source of truth — currently changing B tier color requires edits in 6+ files (tiers.js, PlayerSlotCard.jsx, MyTeam.jsx, Simulate.jsx, Market.jsx, npcTeam.js). Should be one constant/map.
-
-12. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
 ---
 
 ## Small Features 💡
 > Visible improvements that can be done in one session.
 
-1. Add drag-and-drop swap in My Team — currently requires: click slot → pick from bench → then re-add displaced player manually.
-
-
-
+_(all done — see Done ✅)_
 ---
 
 ## Features 🚀
@@ -51,9 +41,15 @@ _(all fixed — see Done ✅)_
 1. Simulate against each other. It can either be a live game, or simulate between your team and player's roster as a NPC team
 ---
 
+## Tech Debt 🔧
+> Refactoring and code quality — no new behavior, just cleaner internals.
+
+1. Refactor tier colors into a single source of truth — currently changing B tier color requires edits in 6+ files (tiers.js, PlayerSlotCard.jsx, MyTeam.jsx, Simulate.jsx, Market.jsx, npcTeam.js). Should be one constant/map.
+
+12. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
+
 
 ## Innovation
-1. How does the simulation startegy work? The old game is full of choices making during the simulation, for example, like which defense it's playing like zone-defense or 1-3-1 zone-defense, or what kinda of plays etc. I am visioning this game to be mostly auto simulation. So maybe some set of plays in advance.
 
 
 ## Done ✅
@@ -99,6 +95,7 @@ _(all fixed — see Done ✅)_
 - [x] Small: Sell penalty changed from 80% → 90% refund
 - [x] Small: Assist algorithm now weights by player avg assists + 1.5× PG bonus (both simulateGame + resumeSimulation)
 - [x] Small: Shot attacker selection now weights by Usage Possessions (FGA + 0.44×FTA + TO) × efficiency × energy — high-usage players get the ball more realistically; cache bumped to v6
+- [x] Small: Drag-and-drop swap in My Team — drag bench chip → starter slot (assign), starter → starter slot (swap), starter → bench strip (remove from lineup); purple glow on drop targets
 
 ---
 

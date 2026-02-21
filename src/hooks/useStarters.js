@@ -108,5 +108,9 @@ export function useStarters(roster) {
     setStarters(prev => ({ ...prev, [pos]: null }))
   }
 
-  return { starters, assign, remove }
+  function swap(posA, posB) {
+    setStarters(prev => ({ ...prev, [posA]: prev[posB], [posB]: prev[posA] }))
+  }
+
+  return { starters, assign, remove, swap }
 }

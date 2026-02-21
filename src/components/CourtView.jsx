@@ -8,7 +8,7 @@ const SLOTS = [
   { pos: 'C',  x: 50, y: 70 },  // bottom center — near paint
 ]
 
-export default function CourtView({ starters, onSlotClick, onHoverPlayer }) {
+export default function CourtView({ starters, onSlotClick, onHoverPlayer, onDragStart, onDropSlot, dragOverPos, onDragOverSlot }) {
   return (
     <div
       className="relative w-full h-full overflow-hidden"
@@ -146,12 +146,16 @@ export default function CourtView({ starters, onSlotClick, onHoverPlayer }) {
               transform: 'translate(-50%, -50%)',
               zIndex: 10,
             }}
+            onDragOver={e => { e.preventDefault(); onDragOverSlot?.(slot.pos) }}
+            onDrop={e => onDropSlot?.(slot.pos, e)}
           >
             <PlayerSlotCard
               pos={slot.pos}
               player={player}
               onClick={() => onSlotClick(slot.pos, player)}
               onHoverPlayer={onHoverPlayer}
+              onDragStart={e => onDragStart?.(slot.pos, player, e)}
+              isDragOver={dragOverPos === slot.pos}
             />
           </div>
         )

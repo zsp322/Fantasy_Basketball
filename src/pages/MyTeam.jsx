@@ -11,13 +11,18 @@ import { T, t } from '../data/i18n'
 import { getPlayerShortName } from '../data/playerNames'
 import { getTierBorderClass } from '../utils/tiers'
 
-function BenchChip({ player }) {
+function BenchChip({ player, onDragStart }) {
   const { lang } = useSettings()
   const tierName = player.tier?.name
   const ringClass = getTierBorderClass(tierName)
 
   return (
-    <div className="relative flex-shrink-0">
+    <div
+      className="relative flex-shrink-0"
+      draggable
+      onDragStart={onDragStart}
+      style={{ cursor: 'grab' }}
+    >
       <div className="flex flex-col items-center gap-0.5">
         {/* Photo */}
         <div
@@ -59,9 +64,39 @@ function BenchChip({ player }) {
 export default function MyTeam({ team, salaryMap = {} }) {
   const { lang } = useSettings()
   const { team: roster, totalSalary, capRemaining, cash, resetTeam, dropPlayer } = team
-  const { starters, assign, remove } = useStarters(roster)
+  const { starters, assign, remove, swap } = useStarters(roster)
   const [drawer, setDrawer] = useState(null)
   const [hoverState, setHoverState] = useState(null) // { player, rect }
+  const [dragOverPos, setDragOverPos] = useState(null) // slot pos or 'bench' or null
+
+  function handleDragStart(fromPos, player, e) {
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/plain', JSON.stringify({ playerId: String(player.id), fromPos }))
+  }
+
+  function handleDropOnSlot(toPos, e) {
+    e.preventDefault()
+    setDragOverPos(null)
+    try {
+      const { playerId, fromPos } = JSON.parse(e.dataTransfer.getData('text/plain'))
+      if (fromPos === toPos) return
+      if (fromPos === 'bench') {
+        const player = roster.find(p => String(p.id) === playerId)
+        if (player) assign(toPos, player)
+      } else {
+        swap(fromPos, toPos)
+      }
+    } catch {}
+  }
+
+  function handleDropOnBench(e) {
+    e.preventDefault()
+    setDragOverPos(null)
+    try {
+      const { fromPos } = JSON.parse(e.dataTransfer.getData('text/plain'))
+      if (fromPos && fromPos !== 'bench') remove(fromPos)
+    } catch {}
+  }
 
   const starterIds = Object.values(starters).filter(Boolean).map(p => p.id)
   const bench = roster.filter(p => !starterIds.includes(p.id))
@@ -77,6 +112,10 @@ export default function MyTeam({ team, salaryMap = {} }) {
         starters={starters}
         onSlotClick={(pos, player) => setDrawer({ pos, player })}
         onHoverPlayer={(player, rect) => setHoverState(player ? { player, rect } : null)}
+        onDragStart={handleDragStart}
+        onDropSlot={handleDropOnSlot}
+        dragOverPos={dragOverPos}
+        onDragOverSlot={setDragOverPos}
       />
 
       {/* Player stats popup (portal — renders outside overflow-hidden) */}
@@ -148,9 +187,12 @@ export default function MyTeam({ team, salaryMap = {} }) {
         </div>
       )}
 
-      {/* ── Bottom bench strip ── */}
+      {/* ── Bottom bench strip (drop target for moving starters to bench) ── */}
       <div
         className="absolute bottom-0 left-0 right-0 z-20"
+        onDragOver={e => { e.preventDefault(); setDragOverPos('bench') }}
+        onDragLeave={() => setDragOverPos(null)}
+        onDrop={handleDropOnBench}
         style={{
           background:
             'linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 60%, transparent 100%)',
@@ -158,6 +200,9 @@ export default function MyTeam({ team, salaryMap = {} }) {
           paddingBottom: 14,
           paddingLeft: 16,
           paddingRight: 16,
+          outline: dragOverPos === 'bench' ? '2px solid rgba(99,102,241,0.5)' : '2px solid transparent',
+          outlineOffset: '-2px',
+          transition: 'outline-color 0.12s',
         }}
       >
         <div className="flex items-center gap-1 mb-2">
@@ -172,7 +217,14 @@ export default function MyTeam({ team, salaryMap = {} }) {
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {bench.map(p => (
-              <BenchChip key={p.id} player={p} />
+              <BenchChip
+                key={p.id}
+                player={p}
+                onDragStart={e => {
+                  e.dataTransfer.effectAllowed = 'move'
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ playerId: String(p.id), fromPos: 'bench' }))
+                }}
+              />
             ))}
           </div>
         )}

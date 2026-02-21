@@ -2,7 +2,7 @@ import { useSettings } from '../contexts/SettingsContext'
 import { getPlayerShortName } from '../data/playerNames'
 import { getTierBorderColor, getTierGlow } from '../utils/tiers'
 
-export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer }) {
+export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer, onDragStart, isDragOver }) {
   const { lang } = useSettings()
   const tierName = player?.tier?.name
   const borderColor = getTierBorderColor(tierName)
@@ -23,9 +23,14 @@ export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer }) 
       onClick={onClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      draggable={!!player}
+      onDragStart={e => {
+        e.dataTransfer.effectAllowed = 'move'
+        onDragStart?.(e)
+      }}
       style={{
         transition: 'transform 0.18s ease, filter 0.18s ease',
-        // hover handled via CSS :hover since we removed useState
+        cursor: player ? 'grab' : 'pointer',
       }}
       className="flex flex-col items-center group focus:outline-none hover:scale-110 hover:-translate-y-1.5 hover:brightness-110 transition-all duration-200"
     >
@@ -34,14 +39,17 @@ export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer }) 
         style={{
           width: 'clamp(113px, 11.9vw, 155px)',
           height: 'clamp(143px, 16.25vw, 200px)',
-          border: `2px solid ${borderColor}`,
+          border: isDragOver ? '2px solid rgba(99,102,241,0.9)' : `2px solid ${borderColor}`,
           borderRadius: 10,
           overflow: 'hidden',
           background: player ? '#0f172a' : 'rgba(15,23,42,0.55)',
           position: 'relative',
-          boxShadow: player
-            ? `0 0 22px 5px ${glow}, 0 4px 16px rgba(0,0,0,0.7)`
-            : '0 2px 8px rgba(0,0,0,0.5)',
+          boxShadow: isDragOver
+            ? '0 0 24px 8px rgba(99,102,241,0.5), 0 4px 16px rgba(0,0,0,0.7)'
+            : player
+              ? `0 0 22px 5px ${glow}, 0 4px 16px rgba(0,0,0,0.7)`
+              : '0 2px 8px rgba(0,0,0,0.5)',
+          transition: 'border-color 0.12s, box-shadow 0.12s',
         }}
       >
         {player ? (
