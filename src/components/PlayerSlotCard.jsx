@@ -1,23 +1,6 @@
 import { useSettings } from '../contexts/SettingsContext'
 import { getPlayerShortName } from '../data/playerNames'
-
-function getTierBorderColor(tierName) {
-  if (!tierName) return '#374151'
-  if (['S+', 'S', 'S-'].includes(tierName)) return '#a855f7'   // purple
-  if (['A+', 'A', 'A-'].includes(tierName)) return '#60a5fa'   // blue
-  if (['B+', 'B', 'B-'].includes(tierName)) return '#14b8a6'   // teal
-  if (['C+', 'C', 'C-'].includes(tierName)) return '#4ade80'   // green
-  return '#6b7280'                                              // gray D/F
-}
-
-function getTierGlow(tierName) {
-  if (!tierName) return 'transparent'
-  if (['S+', 'S', 'S-'].includes(tierName)) return 'rgba(168,85,247,0.6)'
-  if (['A+', 'A', 'A-'].includes(tierName)) return 'rgba(96,165,250,0.55)'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(20,184,166,0.5)'
-  if (['C+', 'C', 'C-'].includes(tierName)) return 'rgba(74,222,128,0.5)'
-  return 'rgba(156,163,175,0.3)'
-}
+import { getTierBorderColor, getTierGlow } from '../utils/tiers'
 
 export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer }) {
   const { lang } = useSettings()
@@ -124,7 +107,7 @@ export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer }) 
               +
             </div>
             <div
-              className="font-bold text-gray-500"
+              className="font-bold text-gray-400"
               style={{ fontSize: 'clamp(11px, 1.4vw, 15px)' }}
             >
               {pos}

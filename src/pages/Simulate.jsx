@@ -399,7 +399,7 @@ function LiveBoxScoreFloat({ myStartersList, currentNpcActive, visiblePlays, onC
         <tr key={p.id} className="border-b border-gray-800/40">
           <td className="px-2 py-1 text-white font-medium text-xs whitespace-nowrap">
             {getPlayerShortName(p, lang)}
-            <span className="text-gray-600 ml-1 text-xs">{p.playingAs ?? p.position}</span>
+            <span className="text-gray-400 ml-1 text-xs">{p.playingAs ?? p.position}</span>
           </td>
           <td className="px-2 py-1 text-right text-orange-300 font-bold text-xs">{b?.pts ?? 0}</td>
           <td className="px-2 py-1 text-right text-gray-400 text-xs">{b?.fgm ?? 0}/{b?.fga ?? 0}</td>
@@ -551,7 +551,7 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
                         {t(T.shared.def, lang)} <span className="font-bold">{effDef}</span>
                         {pen > 0 && <span className="text-gray-600 ml-0.5">({p.defenseRating})</span>}
                       </span>
-                      <span className="text-gray-600">{(p.positions ?? [p.position]).join('/')}</span>
+                      <span className="text-gray-400">{(p.positions ?? [p.position]).join('/')}</span>
                     </div>
                   </div>
                   <div className={`text-xs font-bold px-1 py-0.5 rounded text-black shrink-0 ${p.tier?.color ?? 'bg-gray-600'}`}>
@@ -675,12 +675,12 @@ function PlayRow({ play, isNew, lang }) {
       <div className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 ${isNew ? 'bg-white/5' : ''}`} style={{ fontSize: 13 }}>
         {/* Quarter + clock inline */}
         <div className="flex items-center gap-1 shrink-0" style={{ minWidth: 56 }}>
-          <span className="text-gray-600" style={{ fontSize: 11 }}>{qLabel}</span>
-          {clockStr && <span className="text-gray-700" style={{ fontSize: 10 }}>{clockStr}</span>}
+          <span className="text-gray-400" style={{ fontSize: 11 }}>{qLabel}</span>
+          {clockStr && <span className="text-gray-400" style={{ fontSize: 10 }}>{clockStr}</span>}
         </div>
         {dot}
         <span className={`flex-1 ${textColor}`}>{desc}</span>
-        <span className="text-gray-600 shrink-0" style={{ fontSize: 11 }}>({play.score[0]}–{play.score[1]})</span>
+        <span className="text-gray-400 shrink-0" style={{ fontSize: 11 }}>({play.score[0]}–{play.score[1]})</span>
       </div>
       {zoneNotif && (
         <div className="px-4 pb-1" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
@@ -723,8 +723,8 @@ function BoxScoreTable({ players, starterIds, boxEntries, label, lang }) {
               <tr key={p.id} className="border-b border-gray-800/50 hover:bg-white/3" style={{ opacity: (isStarter || played) ? 1 : 0.35 }}>
                 <td className="px-2 py-1 text-white font-medium">
                   {lang === 'zh' ? getPlayerShortName(p, 'zh') : `${p.first_name?.[0] ?? ''}. ${p.last_name}`}
-                  <span className="text-gray-600 ml-1">{p.playingAs ?? p.position}</span>
-                  {!isStarter && played && <span className="text-gray-600 ml-1 text-xs">OUT</span>}
+                  <span className="text-gray-400 ml-1">{p.playingAs ?? p.position}</span>
+                  {!isStarter && played && <span className="text-gray-400 ml-1 text-xs">OUT</span>}
                   {!isStarter && !played && <span className="text-gray-700 ml-1 text-xs">DNP</span>}
                 </td>
                 {b ? (
@@ -1115,10 +1115,10 @@ export default function Simulate() {
         <div className="flex flex-col items-center" style={{ minWidth: 56 }}>
           {/* My team logo placeholder — basketball emoji styled as badge */}
           <div style={{
-            width: 36, height: 36, borderRadius: '50%',
+            width: 40, height: 40, borderRadius: '50%',
             background: 'linear-gradient(135deg, #ea580c, #b45309)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 20, marginBottom: 2,
+            fontSize: 22, marginBottom: 2,
             boxShadow: isDone && gameResult?.winner === 'my' ? '0 0 14px 4px rgba(251,146,60,0.7)' : '0 2px 8px rgba(0,0,0,0.5)',
           }}>🏀</div>
           <div className="text-orange-400 font-bold tracking-wide" style={{ fontSize: 9 }}>
@@ -1192,13 +1192,13 @@ export default function Simulate() {
         <div className="flex flex-col items-center" style={{ minWidth: 56 }}>
           {/* NPC team logo */}
           <div style={{
-            width: 36, height: 36, borderRadius: '50%',
+            width: 40, height: 40, borderRadius: '50%',
             background: '#1e293b', border: '1px solid #374151',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             overflow: 'hidden', marginBottom: 2,
             boxShadow: isDone && gameResult?.winner === 'npc' ? '0 0 14px 4px rgba(250,204,21,0.7)' : '0 2px 8px rgba(0,0,0,0.5)',
           }}>
-            <img src={NPC_TEAM_LOGO} alt="GSW" style={{ width: 30, height: 30, objectFit: 'contain' }} />
+            <img src={NPC_TEAM_LOGO} alt="GSW" style={{ width: 38, height: 38, objectFit: 'contain' }} />
           </div>
           <div className="text-yellow-400 font-bold tracking-wide" style={{ fontSize: 9 }}>{NPC_TEAM_SHORT}</div>
           <div className="font-black tabular-nums leading-none"

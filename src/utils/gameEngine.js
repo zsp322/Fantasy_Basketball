@@ -36,6 +36,15 @@ function weightedPick(players, weightFn) {
   return players[players.length - 1]
 }
 
+// Usage possessions per game — FGA + 0.44×FTA + TO.
+// Pre-computed on real players via usePlayers.js; computed inline for NPC players
+// who carry raw avg data but no pre-attached usagePossessions.
+function getUsagePossessions(player) {
+  if (player.usagePossessions != null) return player.usagePossessions
+  const avg = player.avg ?? {}
+  return Math.max(4, (avg.fga ?? 10) + 0.44 * (avg.fta ?? 2) + (avg.to ?? 1))
+}
+
 // 80% chance: match by position, else weighted by defense
 function posMatchPick(players, pos, weightFn) {
   if (Math.random() < 0.80) {
@@ -264,7 +273,12 @@ function _runAttackInline(
   atkBoxes, defBoxes, drainMap,
   atkStreakMap
 ) {
-  const atk = weightedPick(atkTeam,  x => (x.offenseRating + 100) * getEnergyMultiplier(atkMap[x.id]))
+  // Weight by usage volume × offensive efficiency × current energy
+  const atk = weightedPick(atkTeam, x =>
+    getUsagePossessions(x) *
+    ((x.offenseRating ?? 80) / 100 + 0.5) *
+    getEnergyMultiplier(atkMap[x.id])
+  )
   const def = posMatchPick(defTeam, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(defMap[x.id]))
 
   const streakBefore = atkStreakMap[atk.id] ?? 0
@@ -283,7 +297,9 @@ function _runAttackInline(
   if (result.made && result.shotType !== 'FT' && Math.random() < 0.60) {
     const tm = atkTeam.filter(x => x.id !== atk.id)
     if (tm.length) {
-      assister = weightedPick(tm, x => Math.max(x.avg?.ast ?? 0, 0.5))
+      // Weight by avg assists; PG gets 1.5× bonus to reflect real-world playmaking role
+      const isPG = x => (x.positions ?? [x.position]).includes('PG')
+      assister = weightedPick(tm, x => Math.max(x.avg?.ast ?? 0, 0.5) * (isPG(x) ? 1.5 : 1.0))
       atkBoxes[assister.id].ast++
     }
   }
@@ -437,7 +453,8 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
   const npcEnergyMap = { ...state.npcEnergies }
 
   for (const p of myLineup) {
-    if (myEnergyMap[p.id] == null) myEnergyMap[p.id] = 100
+    // Fresh bench player (never on court) starts at 80% per design doc §9
+    if (myEnergyMap[p.id] == null) myEnergyMap[p.id] = 80
   }
   for (const p of [...npcLineup, ...npcBenchInput]) {
     if (npcEnergyMap[p.id] == null) npcEnergyMap[p.id] = 100
@@ -494,7 +511,12 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
 
   function runAttack(atkTeam, atkMap, defTeam, defMap, teamIndex, q) {
     const atkStreakMap = teamIndex === 0 ? myStreakMap : npcStreakMap
-    const atk = weightedPick(atkTeam, x => (x.offenseRating + 100) * getEnergyMultiplier(atkMap[x.id] ?? 100))
+    // Weight by usage volume × offensive efficiency × current energy
+    const atk = weightedPick(atkTeam, x =>
+      getUsagePossessions(x) *
+      ((x.offenseRating ?? 80) / 100 + 0.5) *
+      getEnergyMultiplier(atkMap[x.id] ?? 100)
+    )
     const def = posMatchPick(defTeam, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(defMap[x.id] ?? 100))
 
     const streakBefore = atkStreakMap[atk.id] ?? 0
@@ -517,7 +539,9 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
     if (result.made && result.shotType !== 'FT' && Math.random() < 0.60) {
       const tm = atkTeam.filter(x => x.id !== atk.id)
       if (tm.length) {
-        assister = weightedPick(tm, x => Math.max(x.avg?.ast ?? 0, 0.5))
+        // Weight by avg assists; PG gets 1.5× bonus to reflect real-world playmaking role
+        const isPG = x => (x.positions ?? [x.position]).includes('PG')
+        assister = weightedPick(tm, x => Math.max(x.avg?.ast ?? 0, 0.5) * (isPG(x) ? 1.5 : 1.0))
         atkBox[assister.id].ast++
       }
     }

@@ -5,15 +5,7 @@ import PlayerStatsPopup from './PlayerStatsPopup'
 import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerName } from '../data/playerNames'
-
-function getTierBorderColor(tierName) {
-  if (!tierName) return '#374151'
-  if (['S+', 'S', 'S-'].includes(tierName)) return '#a855f7'
-  if (['A+', 'A', 'A-'].includes(tierName)) return '#60a5fa'
-  if (['B+', 'B', 'B-'].includes(tierName)) return '#14b8a6'
-  if (['C+', 'C', 'C-'].includes(tierName)) return '#4ade80'
-  return '#6b7280'
-}
+import { getTierBorderColor } from '../utils/tiers'
 
 export default function FoundationalPick({ sPlayers, onPick }) {
   const { lang } = useSettings()
@@ -29,7 +21,7 @@ export default function FoundationalPick({ sPlayers, onPick }) {
 
       {/* Hover popup (portal) */}
       {hoverState && (
-        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} lang={lang} />
+        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} />
       )}
 
       <div className="bg-gray-900 border border-yellow-400/30 rounded-2xl p-6 max-w-3xl w-full mt-6">

@@ -86,6 +86,7 @@ async function fetchAllStats() {
         gp:   gen[genIdx.gp]   ?? 0,
         min:  gen[genIdx.min]  ?? 0,
         reb:  gen[genIdx.reb]  ?? 0,
+        pf:   gen[2]           ?? 0,
         teamAbbr: item.athlete.team?.abbreviation ?? '',
       }
     }

@@ -51,7 +51,7 @@ export function calcFantasyScore(avg) {
   )
 }
 
-// Offensive efficiency — True Shooting %, assist/turnover ratio, and 3pt threat
+// Offensive efficiency — True Shooting %, EFG% premium, assist/turnover ratio, 3pt threat
 // Used in game simulation and player display
 export function calcOffenseRating(avg) {
   if (!avg) return 0
@@ -63,27 +63,47 @@ export function calcOffenseRating(avg) {
   const tsAttempts = fga + 0.44 * fta
   const ts = tsAttempts > 0.5 ? ((avg.pts ?? 0) / (2 * tsAttempts)) : 0.53
 
+  // Effective FG%: (FGM + 0.5 * FG3M) / FGA — rewards efficient shooters above 50% EFG
+  const fgm = avg.fgm ?? 0
+  const efg = fga > 0 ? (fgm + 0.5 * (avg.fg3m ?? 0)) / fga : 0.50
+  const efgPremium = Math.max(0, efg - 0.50) * (avg.pts ?? 0) * 2.5
+
   // Assist-to-Turnover ratio (capped to prevent extreme outliers)
   const to = Math.max(avg.to ?? 0, 0.5)
   const astToRatio = Math.min((avg.ast ?? 0) / to, 4)
 
   const raw =
-    ts * (avg.pts ?? 0) * 10.0 +    // quality-adjusted scoring
+    ts * (avg.pts ?? 0) * 10.0 +    // quality-adjusted scoring volume
+    efgPremium +                      // shooting efficiency bonus above league avg
     (avg.ast ?? 0) * 5.0 +           // playmaking volume
     astToRatio * 6.5 +               // efficient playmaking bonus
-    (avg.fg3m ?? 0) * 4.0 -          // 3pt threat
+    (avg.fg3m ?? 0) * 3.0 -          // 3pt threat (reduced; EFG premium handles quality)
     (avg.to ?? 0) * 5.0              // turnover penalty
 
   return Math.max(0, Math.round(raw))
 }
 
-// Defensive impact — steals, blocks, and rebounding
+// Possessions used per game — proxy for Usage %.
+// Formula: FGA + 0.44×FTA + TO  (standard NBA USG numerator, no team denominator needed)
+// Used to weight attacker selection in the game engine so high-usage players get the ball more.
+export function calcUsagePossessions(avg) {
+  if (!avg) return 0
+  return Math.max(0, (avg.fga ?? 0) + 0.44 * (avg.fta ?? 0) + (avg.to ?? 0))
+}
+
+// Defensive impact — steals, blocks, rebounding (per-36 normalized) + court-time bonus - foul penalty
+// Per-36 normalization equalizes bench players vs starters; capped at 1.5× for <15-min players.
+// Court-time bonus (min × 0.7): coaches play players they trust defensively — more minutes ≈ more defensive value.
 // Used in game simulation and player display
 export function calcDefenseRating(avg) {
   if (!avg) return 0
+  const min = Math.max(avg.min ?? 20, 5)
+  const norm = Math.min(36 / min, 1.5)
   const raw =
-    (avg.stl ?? 0) * 31 +
-    (avg.blk ?? 0) * 25 +
-    (avg.reb ?? 0) * 4
+    (avg.stl ?? 0) * norm * 27 +   // steals per 36 (best per-possession defensive indicator)
+    (avg.blk ?? 0) * norm * 25 +   // blocks per 36
+    (avg.reb ?? 0) * norm * 3.0 +  // rebounding per 36
+    min * 0.7 -                     // court-time bonus: playing time reflects coaching trust
+    (avg.pf  ?? 2.5) * 4.0         // personal foul penalty (undisciplined defense)
   return Math.max(0, Math.round(raw))
 }

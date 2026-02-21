@@ -46,6 +46,38 @@ export function getTierByName(name) {
   return TIERS.find(t => t.name === name) ?? TIERS[TIERS.length - 1]
 }
 
+// ── Shared tier color helpers (single source of truth) ────────────────────────
+
+/** Hex border color for inline styles */
+export function getTierBorderColor(tierName) {
+  if (!tierName) return '#374151'
+  if (['S+', 'S', 'S-'].includes(tierName)) return '#a855f7'
+  if (['A+', 'A', 'A-'].includes(tierName)) return '#60a5fa'
+  if (['B+', 'B', 'B-'].includes(tierName)) return '#14b8a6'
+  if (['C+', 'C', 'C-'].includes(tierName)) return '#4ade80'
+  return '#6b7280'
+}
+
+/** rgba glow color for box-shadow */
+export function getTierGlow(tierName) {
+  if (!tierName) return 'transparent'
+  if (['S+', 'S', 'S-'].includes(tierName)) return 'rgba(168,85,247,0.55)'
+  if (['A+', 'A', 'A-'].includes(tierName)) return 'rgba(96,165,250,0.5)'
+  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(20,184,166,0.45)'
+  if (['C+', 'C', 'C-'].includes(tierName)) return 'rgba(74,222,128,0.45)'
+  return 'rgba(156,163,175,0.25)'
+}
+
+/** Tailwind border class for className-based styling */
+export function getTierBorderClass(tierName) {
+  if (!tierName) return 'border-gray-700'
+  if (['S+', 'S', 'S-'].includes(tierName)) return 'border-purple-400'
+  if (['A+', 'A', 'A-'].includes(tierName)) return 'border-blue-400'
+  if (['B+', 'B', 'B-'].includes(tierName)) return 'border-teal-400'
+  if (['C+', 'C', 'C-'].includes(tierName)) return 'border-green-400'
+  return 'border-gray-600'
+}
+
 /**
  * Scan a tiered player array and record the min/max fantasyScore seen in each tier.
  * Result is saved to localStorage as 'fbball_tier_boundaries' by usePlayers.

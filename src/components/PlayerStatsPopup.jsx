@@ -1,122 +1,11 @@
 import ReactDOM from 'react-dom'
+import { useSettings } from '../contexts/SettingsContext'
+import { T, t } from '../data/i18n'
 import { getPlayerName } from '../data/playerNames'
+import RadarChart from './RadarChart'
 
-// Radar chart axes and their rough max values for normalization
-const AXES = [
-  { key: 'pts', label: 'PTS', max: 35 },
-  { key: 'ast', label: 'AST', max: 12 },
-  { key: 'blk', label: 'BLK', max: 3.5 },
-  { key: 'stl', label: 'STL', max: 3 },
-  { key: 'reb', label: 'REB', max: 15 },
-]
-
-function polar(cx, cy, r, angleDeg) {
-  const rad = (angleDeg * Math.PI) / 180
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
-}
-
-function RadarChart({ avg }) {
-  if (!avg) return null
-
-  const SIZE = 120
-  const cx = SIZE / 2
-  const cy = SIZE / 2
-  const R = 38
-  const n = AXES.length
-
-  // evenly spaced angles, start from top (-90°)
-  const angles = AXES.map((_, i) => -90 + (i * 360) / n)
-
-  const gridLevels = [0.25, 0.5, 0.75, 1.0]
-
-  function toPoints(level) {
-    return angles
-      .map(a => {
-        const p = polar(cx, cy, R * level, a)
-        return `${p.x},${p.y}`
-      })
-      .join(' ')
-  }
-
-  const dataPoints = AXES.map((axis, i) => {
-    const val = Math.min(Math.max((avg[axis.key] ?? 0) / axis.max, 0), 1)
-    const p = polar(cx, cy, R * val, angles[i])
-    return { x: p.x, y: p.y, rawVal: (avg[axis.key] ?? 0).toFixed(1) }
-  })
-
-  const labelPositions = AXES.map((axis, i) => {
-    const p = polar(cx, cy, R * 1.42, angles[i])
-    return { ...p, label: axis.label, val: (avg[axis.key] ?? 0).toFixed(1) }
-  })
-
-  return (
-    <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-      {/* Grid rings */}
-      {gridLevels.map((lv, i) => (
-        <polygon
-          key={i}
-          points={toPoints(lv)}
-          fill="none"
-          stroke={lv === 1.0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)'}
-          strokeWidth="0.8"
-        />
-      ))}
-
-      {/* Axis spokes */}
-      {angles.map((a, i) => {
-        const outer = polar(cx, cy, R, a)
-        return (
-          <line
-            key={i}
-            x1={cx} y1={cy}
-            x2={outer.x} y2={outer.y}
-            stroke="rgba(255,255,255,0.15)"
-            strokeWidth="0.8"
-          />
-        )
-      })}
-
-      {/* Data fill */}
-      <polygon
-        points={dataPoints.map(p => `${p.x},${p.y}`).join(' ')}
-        fill="rgba(251,146,60,0.28)"
-        stroke="rgba(251,146,60,0.9)"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-
-      {/* Dots on data */}
-      {dataPoints.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="2.2" fill="rgb(251,146,60)" />
-      ))}
-
-      {/* Axis labels + values */}
-      {labelPositions.map((lp, i) => (
-        <g key={i}>
-          <text
-            x={lp.x} y={lp.y - 3}
-            textAnchor="middle"
-            fill="rgba(200,200,200,0.85)"
-            fontSize="7.5"
-            fontWeight="600"
-          >
-            {lp.label}
-          </text>
-          <text
-            x={lp.x} y={lp.y + 6.5}
-            textAnchor="middle"
-            fill="rgba(251,146,60,0.95)"
-            fontSize="7"
-          >
-            {lp.val}
-          </text>
-        </g>
-      ))}
-    </svg>
-  )
-}
-
-export default function PlayerStatsPopup({ player, rect, lang = 'zh' }) {
+export default function PlayerStatsPopup({ player, rect }) {
+  const { lang } = useSettings()
   if (!player || !rect) return null
 
   const POPUP_W = 270
@@ -177,9 +66,7 @@ export default function PlayerStatsPopup({ player, rect, lang = 'zh' }) {
               {avg?.teamAbbr ?? '—'} · {player.position || '—'}
             </div>
             <div className="flex items-center gap-1.5 mt-1">
-              <span
-                className={`text-xs font-bold px-1.5 py-0.5 rounded ${player.tier?.color ?? 'bg-gray-500 text-white'}`}
-              >
+              <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${player.tier?.color ?? 'bg-gray-500 text-white'}`}>
                 {tierName}
               </span>
               <span className="text-green-400 text-xs font-bold">${player.tier?.salary}M</span>
@@ -188,11 +75,11 @@ export default function PlayerStatsPopup({ player, rect, lang = 'zh' }) {
           <div className="text-right flex-shrink-0 flex flex-col gap-1">
             <div>
               <div className="text-orange-400 font-bold text-base leading-tight">{player.offenseRating ?? '—'}</div>
-              <div className="text-gray-500 text-xs">{lang === 'zh' ? '进攻' : 'ATK'}</div>
+              <div className="text-gray-500 text-xs">{t(T.shared.atk, lang)}</div>
             </div>
             <div>
               <div className="text-blue-400 font-bold text-base leading-tight">{player.defenseRating ?? '—'}</div>
-              <div className="text-gray-500 text-xs">{lang === 'zh' ? '防守' : 'DEF'}</div>
+              <div className="text-gray-500 text-xs">{t(T.shared.def, lang)}</div>
             </div>
           </div>
         </div>
@@ -201,15 +88,14 @@ export default function PlayerStatsPopup({ player, rect, lang = 'zh' }) {
         <div className="flex items-center gap-1 px-2 py-2">
           <RadarChart avg={avg} />
 
-          {/* Extra stats on the right */}
           <div className="flex flex-col gap-1.5 flex-1">
             {[
-              { key: 'PTS', label: lang === 'zh' ? '得分' : 'PTS', value: stat(avg?.pts), color: 'text-orange-300' },
-              { key: 'REB', label: lang === 'zh' ? '篮板' : 'REB', value: stat(avg?.reb), color: 'text-blue-300' },
-              { key: 'AST', label: lang === 'zh' ? '助攻' : 'AST', value: stat(avg?.ast), color: 'text-green-300' },
-              { key: 'STL', label: lang === 'zh' ? '抢断' : 'STL', value: stat(avg?.stl), color: 'text-yellow-300' },
-              { key: 'BLK', label: lang === 'zh' ? '盖帽' : 'BLK', value: stat(avg?.blk), color: 'text-purple-300' },
-              { key: 'TO',  label: lang === 'zh' ? '失误' : 'TO',  value: stat(avg?.to),  color: 'text-red-400' },
+              { key: 'PTS', label: t(T.shared.pts, lang), value: stat(avg?.pts), color: 'text-orange-300' },
+              { key: 'REB', label: t(T.shared.reb, lang), value: stat(avg?.reb), color: 'text-blue-300' },
+              { key: 'AST', label: t(T.shared.ast, lang), value: stat(avg?.ast), color: 'text-green-300' },
+              { key: 'STL', label: t(T.shared.stl, lang), value: stat(avg?.stl), color: 'text-yellow-300' },
+              { key: 'BLK', label: t(T.shared.blk, lang), value: stat(avg?.blk), color: 'text-purple-300' },
+              { key: 'TO',  label: t(T.shared.to,  lang), value: stat(avg?.to),  color: 'text-red-400' },
             ].map(({ key, label, value, color }) => (
               <div key={key} className="flex justify-between items-center">
                 <span className="text-gray-500 text-xs w-7">{label}</span>
@@ -218,9 +104,7 @@ export default function PlayerStatsPopup({ player, rect, lang = 'zh' }) {
                     className={`h-1 rounded-full ${color.replace('text-', 'bg-')}`}
                     style={{
                       width: `${Math.min(
-                        (Number(value) /
-                          ({ PTS: 35, REB: 15, AST: 12, STL: 3, BLK: 3.5, TO: 5 }[key] ?? 10)) *
-                          100,
+                        (Number(value) / ({ PTS: 35, REB: 15, AST: 12, STL: 3, BLK: 3.5, TO: 5 }[key] ?? 10)) * 100,
                         100
                       )}%`,
                     }}

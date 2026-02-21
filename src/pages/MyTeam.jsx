@@ -9,17 +9,10 @@ import { useStarters, POS_ORDER } from '../hooks/useStarters'
 import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerShortName } from '../data/playerNames'
+import { getTierBorderClass } from '../utils/tiers'
 
-function getTierBorderClass(tierName) {
-  if (!tierName) return 'border-gray-700'
-  if (['S+', 'S', 'S-'].includes(tierName)) return 'border-purple-400'
-  if (['A+', 'A', 'A-'].includes(tierName)) return 'border-blue-400'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'border-teal-400'
-  if (['C+', 'C', 'C-'].includes(tierName)) return 'border-green-400'
-  return 'border-gray-600'
-}
-
-function BenchChip({ player, lang = 'zh' }) {
+function BenchChip({ player }) {
+  const { lang } = useSettings()
   const tierName = player.tier?.name
   const ringClass = getTierBorderClass(tierName)
 
@@ -55,7 +48,7 @@ function BenchChip({ player, lang = 'zh' }) {
         <div className="text-white font-semibold truncate text-center" style={{ fontSize: 11, maxWidth: 62 }}>
           {getPlayerShortName(player, lang)}
         </div>
-        <div className="text-gray-500 text-center" style={{ fontSize: 10 }}>
+        <div className="text-gray-400 text-center" style={{ fontSize: 10 }}>
           {(player.positions ?? [player.position]).join('/')}
         </div>
       </div>
@@ -88,7 +81,7 @@ export default function MyTeam({ team, salaryMap = {} }) {
 
       {/* Player stats popup (portal — renders outside overflow-hidden) */}
       {hoverState && (
-        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} lang={lang} />
+        <PlayerStatsPopup player={hoverState.player} rect={hoverState.rect} />
       )}
 
       {/* ── Top-left: team info panel ── */}
@@ -179,7 +172,7 @@ export default function MyTeam({ team, salaryMap = {} }) {
         ) : (
           <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
             {bench.map(p => (
-              <BenchChip key={p.id} player={p} lang={lang} />
+              <BenchChip key={p.id} player={p} />
             ))}
           </div>
         )}

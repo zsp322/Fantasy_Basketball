@@ -61,9 +61,9 @@ export function useTeam() {
   function dropPlayer(playerId, liveSalary) {
     const player = state.team.find(p => p.id === playerId)
     if (!player) return
-    // 20% sell penalty — refund based on live market salary if available, otherwise locked salary
+    // 10% sell penalty — refund based on live market salary if available, otherwise locked salary
     const baseSalary = liveSalary ?? player.signedSalary ?? player.tier?.salary ?? 0
-    const refund = parseFloat((baseSalary * 0.8).toFixed(1))
+    const refund = parseFloat((baseSalary * 0.9).toFixed(1))
     persist({
       ...state,
       team: state.team.filter(p => p.id !== playerId),

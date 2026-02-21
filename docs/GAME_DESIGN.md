@@ -1,6 +1,6 @@
 # Fantasy Basketball — Game Design Document
 
-Last updated: 2026-02-19
+Last updated: 2026-02-21
 
 ---
 
@@ -19,14 +19,42 @@ Each quarter runs 20 full "rounds". A round = one my-team attack + one NPC attac
 
 ## 2. Player Ratings
 
-Ratings are pre-computed from real season averages using:
+Ratings are pre-computed from real season averages using Box BPM-style approximations:
 
 ```
-offenseRating = pts * 5.0 + ast * 4.0 + fg3m * 3.0 + (fgm/fga) * 20 + (ftm/fta) * 10
-defenseRating = stl * 31 + blk * 25 + reb * 4
+# Offense Rating
+tsAttempts = FGA + 0.44 × FTA
+ts         = PTS / (2 × tsAttempts)   [fallback 0.53 if no shot data]
+
+efg        = (FGM + 0.5 × FG3M) / FGA   [fallback 0.50 if no FGA]
+efgPremium = max(0, efg − 0.50) × PTS × 2.5   # bonus above 50% EFG
+
+astToRatio = min(AST / max(TO, 0.5), 4)        # capped to avoid outliers
+
+offenseRating = ts × PTS × 10.0
+              + efgPremium
+              + AST × 5.0
+              + astToRatio × 6.5
+              + FG3M × 3.0
+              − TO × 5.0
+
+# Defense Rating (per-36 normalized + court-time bonus)
+norm = min(36 / max(MIN, 5), 1.5)   # cap at 1.5× for very short-minute players
+
+defenseRating = STL × norm × 27
+              + BLK × norm × 25
+              + REB × norm × 3.0
+              + MIN × 0.7           # court-time bonus: coaches play players they trust defensively
+              − PF × 4.0            # personal foul penalty
+
+# Example DEF scale:
+# Wembanyama (~29.5 min): ~197   elite shot-blocker + minutes bonus
+# Rudy Gobert (~33 min):  ~133   dominant rim protector
+# Klay Thompson 2016:       63   good perimeter defender, low steal volume
+# Festus Ezeli 2016:        51   reserve big, short minutes
 ```
 
-These are fixed per player and used as base inputs to the matchup formula. NPC Warriors ratings have been manually adjusted upward to reflect their historically elite 2015-16 defensive system beyond what raw counting stats capture.
+Both are floored at 0 and rounded to the nearest integer. NPC Warriors ratings are hardcoded to match what the formula produces from their 2015-16 season averages (including PF data).
 
 ---
 
@@ -161,7 +189,7 @@ Checked per possession after turnover check:
 | Steal | `defender.avg.stl × defPosMult × 0.12` (on turnover) | Tagged to defender |
 | Block | `defender.avg.blk × defPosMult × 0.07` (on missed FG) | Tagged to defender |
 | Off-reb | `attacker.avg.reb × 0.03` (on miss, no block) | Tagged to attacker |
-| Assist | 60% chance on any made field goal | Random teammate |
+| Assist | 60% chance on any made field goal | Weighted by teammate avg AST; PG gets 1.5× bonus |
 
 ---
 
@@ -191,8 +219,17 @@ The user can substitute their own players during the game:
 2. **Click** any starter card on the left column
 3. A panel shows bench options with their ATK/DEF ratings and position mismatch penalty
 4. On selection, `resumeSimulation()` is called — it keeps all plays up to the pause point, then re-simulates the remainder with the new lineup using the current score and energy snapshots
-5. The sub-in player starts with **80%** energy (fresh bench player boost)
+5. The sub-in player's energy:
+   - **Fresh bench player** (never been on court): starts at **80%**
+   - **Returning player** (was on court earlier, subbed out): restored to `energyWhenBenched + playsOnBench × 1.5%`, capped at 100%
 6. Animation auto-resumes after swap
+
+### User Team Auto-Substitution
+
+The user's bench players also auto-sub during the game (same logic as NPC subs):
+- Trigger: starter energy drops below **38%** at any play event
+- Picks the best available bench player by: `(ATK + DEF) × positionMatchMult × energyMultiplier`
+- Sub-in energy follows the same rules as human subs (80% fresh, recovered if returning)
 
 ---
 
@@ -210,11 +247,13 @@ The user can substitute their own players during the game:
 
 Each possession:
 
-**Attacker**: weighted random from 5 active players
+**Attacker**: weighted random from 5 active players using real usage data
 ```
-weight = (offenseRating + 100) × energyMultiplier
+usagePossessions = FGA + 0.44 × FTA + TO   (per-game, from ESPN season averages)
+
+weight = usagePossessions × (offenseRating / 100 + 0.5) × energyMultiplier
 ```
-Stars with high offense ratings get the ball more, but fatigued stars get fewer opportunities.
+High-usage players (Luka ~27 poss/g) get the ball ~6–8× more than low-usage role players (~5 poss/g). Fatigued stars get fewer opportunities. `usagePossessions` is pre-computed for real players; NPC players compute it inline from their avg stats.
 
 **Defender**: 80% chance the positionally matched defender guards (e.g., Curry guards the opposing PG). 20% chance a random defender is picked by defensive weight:
 ```

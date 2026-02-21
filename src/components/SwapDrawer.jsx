@@ -136,7 +136,7 @@ export default function SwapDrawer({ pos, currentPlayer, currentPlayerLiveSalary
                           <span className="font-bold">{effDef}</span>
                           {pen > 0 && <span className="text-gray-600 ml-0.5">({player.defenseRating})</span>}
                         </span>
-                        <span className="text-gray-600">{(player.positions ?? [player.position]).join('/')}</span>
+                        <span className="text-gray-400">{(player.positions ?? [player.position]).join('/')}</span>
                       </div>
                     </div>
                     <TierBadge tier={player.tier} size="sm" />

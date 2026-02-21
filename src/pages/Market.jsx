@@ -3,6 +3,8 @@ import { useMarket } from '../hooks/useMarket'
 import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerName } from '../data/playerNames'
+import { getTierBorderColor, getTierGlow } from '../utils/tiers'
+import RadarChart from '../components/RadarChart'
 
 function formatCountdown(ms, lang = 'en') {
   if (ms <= 0) return lang === 'zh' ? '刷新中...' : 'Refreshing...'
@@ -17,83 +19,9 @@ function formatCountdown(ms, lang = 'en') {
   return `${m}m ${s}s`
 }
 
-function getTierBorderColor(tierName) {
-  if (!tierName) return 'rgba(75,85,99,0.8)'
-  if (['S+', 'S', 'S-'].includes(tierName)) return 'rgba(168,85,247,0.9)'
-  if (['A+', 'A', 'A-'].includes(tierName)) return 'rgba(96,165,250,0.9)'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(20,184,166,0.9)'
-  if (['C+', 'C', 'C-'].includes(tierName)) return 'rgba(74,222,128,0.9)'
-  return 'rgba(156,163,175,0.6)'
-}
-
-function getTierGlow(tierName) {
-  if (!tierName) return 'transparent'
-  if (['S+', 'S', 'S-'].includes(tierName)) return 'rgba(168,85,247,0.5)'
-  if (['A+', 'A', 'A-'].includes(tierName)) return 'rgba(96,165,250,0.45)'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(20,184,166,0.4)'
-  if (['C+', 'C', 'C-'].includes(tierName)) return 'rgba(74,222,128,0.4)'
-  return 'rgba(156,163,175,0.2)'
-}
-
-// ── Radar chart ──────────────────────────────────────────────
-const RADAR_AXES = [
-  { key: 'pts', label: 'PTS', max: 35 },
-  { key: 'ast', label: 'AST', max: 12 },
-  { key: 'blk', label: 'BLK', max: 3.5 },
-  { key: 'stl', label: 'STL', max: 3 },
-  { key: 'reb', label: 'REB', max: 15 },
-]
-
-function polar(cx, cy, r, deg) {
-  const rad = (deg * Math.PI) / 180
-  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) }
-}
-
-function RadarChart({ avg }) {
-  if (!avg) return null
-  const SIZE = 130, cx = 65, cy = 65, R = 42
-  const n = RADAR_AXES.length
-  const angles = RADAR_AXES.map((_, i) => -90 + (i * 360) / n)
-
-  const gridPts = (lv) => angles.map(a => { const p = polar(cx, cy, R * lv, a); return `${p.x},${p.y}` }).join(' ')
-  const dataPts = RADAR_AXES.map((ax, i) => {
-    const v = Math.min(Math.max((avg[ax.key] ?? 0) / ax.max, 0), 1)
-    const p = polar(cx, cy, R * v, angles[i])
-    return `${p.x},${p.y}`
-  })
-  const labels = RADAR_AXES.map((ax, i) => {
-    const p = polar(cx, cy, R * 1.38, angles[i])
-    return { ...p, label: ax.label, val: (avg[ax.key] ?? 0).toFixed(1) }
-  })
-
-  return (
-    <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
-      {[0.25, 0.5, 0.75, 1].map((lv, i) => (
-        <polygon key={i} points={gridPts(lv)} fill="none"
-          stroke={lv === 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.08)'} strokeWidth="0.8" />
-      ))}
-      {angles.map((a, i) => {
-        const p = polar(cx, cy, R, a)
-        return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(255,255,255,0.12)" strokeWidth="0.8" />
-      })}
-      <polygon points={dataPts.join(' ')} fill="rgba(251,146,60,0.28)"
-        stroke="rgba(251,146,60,0.9)" strokeWidth="1.5" strokeLinejoin="round" />
-      {dataPts.map((pt, i) => {
-        const [x, y] = pt.split(',').map(Number)
-        return <circle key={i} cx={x} cy={y} r="2.2" fill="rgb(251,146,60)" />
-      })}
-      {labels.map((lp, i) => (
-        <g key={i}>
-          <text x={lp.x} y={lp.y - 3} textAnchor="middle" fill="rgba(200,200,200,0.8)" fontSize="7.5" fontWeight="600">{lp.label}</text>
-          <text x={lp.x} y={lp.y + 6.5} textAnchor="middle" fill="rgba(251,146,60,0.9)" fontSize="7">{lp.val}</text>
-        </g>
-      ))}
-    </svg>
-  )
-}
-
 // ── Bottom stats panel ────────────────────────────────────────
-function StatsPanel({ player, livePrice, onClose, lang = 'zh' }) {
+function StatsPanel({ player, livePrice, onClose }) {
+  const { lang } = useSettings()
   if (!player) return null
   const avg = player.avg
   const stat = v => (v != null ? Number(v).toFixed(1) : '—')
@@ -145,7 +73,7 @@ function StatsPanel({ player, livePrice, onClose, lang = 'zh' }) {
 
         {/* Radar */}
         <div className="flex items-center justify-center px-4 border-r border-gray-700/50 shrink-0">
-          <RadarChart avg={avg} />
+          <RadarChart avg={avg} size={130} radius={42} />
         </div>
 
         {/* Stat bars */}
@@ -195,7 +123,8 @@ function StatsPanel({ player, livePrice, onClose, lang = 'zh' }) {
 }
 
 // ── Player card ───────────────────────────────────────────────
-function PlayerMarketCard({ player, livePrice, onBuy, canAfford, alreadyOwned, selected, onSelect, lang = 'zh' }) {
+function PlayerMarketCard({ player, livePrice, onBuy, canAfford, alreadyOwned, selected, onSelect }) {
+  const { lang } = useSettings()
   const [feedback, setFeedback] = useState(null)
   const [hovered, setHovered] = useState(false)
   const tierName = player.tier?.name
@@ -309,7 +238,8 @@ function PlayerMarketCard({ player, livePrice, onBuy, canAfford, alreadyOwned, s
 }
 
 // ── Market Movers row ─────────────────────────────────────────
-function MoverRow({ change, lang }) {
+function MoverRow({ change }) {
+  const { lang } = useSettings()
   const { player, newSalary, delta, pct, tierChanged } = change
   const isGain = delta >= 0
   return (
@@ -329,7 +259,7 @@ function MoverRow({ change, lang }) {
       {/* Name + team */}
       <div className="flex-1 min-w-0">
         <div className="text-white font-semibold text-sm truncate">{getPlayerName(player, lang)}</div>
-        <div className="text-gray-500 text-xs">{player.avg?.teamAbbr ?? '—'} · {player.position || '—'}</div>
+        <div className="text-gray-400 text-xs">{player.avg?.teamAbbr ?? '—'} · {player.position || '—'}</div>
       </div>
 
       {/* Tier badge */}
@@ -496,7 +426,6 @@ export default function Market({ players, team, winners, losers, salaryMap, upda
                     alreadyOwned={teamIds.includes(player.id)}
                     selected={selectedPlayer?.id === player.id}
                     onSelect={handleSelect}
-                    lang={lang}
                   />
                 )
               })}
@@ -522,7 +451,7 @@ export default function Market({ players, team, winners, losers, salaryMap, upda
                   </span>
                   <span className="text-green-500 text-xs">▲</span>
                 </div>
-                {winners.map(c => <MoverRow key={c.player.id} change={c} lang={lang} />)}
+                {winners.map(c => <MoverRow key={c.player.id} change={c} />)}
               </div>
 
               {/* Divider */}
@@ -536,7 +465,7 @@ export default function Market({ players, team, winners, losers, salaryMap, upda
                   </span>
                   <span className="text-red-500 text-xs">▼</span>
                 </div>
-                {losers.map(c => <MoverRow key={c.player.id} change={c} lang={lang} />)}
+                {losers.map(c => <MoverRow key={c.player.id} change={c} />)}
               </div>
             </div>
           )}
@@ -549,7 +478,6 @@ export default function Market({ players, team, winners, losers, salaryMap, upda
           player={selectedPlayer}
           livePrice={parseFloat((salaryMap[String(selectedPlayer.id)] ?? selectedPlayer.tier?.salary ?? 0).toFixed(1))}
           onClose={() => setSelectedPlayer(null)}
-          lang={lang}
         />
       )}
     </div>

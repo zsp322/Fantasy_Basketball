@@ -9,8 +9,7 @@ _(all fixed — see Done ✅)_
 ---
 
 ## UI Improvments 🐛
-1. Barely can see the quarter and time on the simulating texts on dark mode
-2. The team profile pic size isn't equal, Feel like the npc team profile pic is smaller_
+_(all fixed — see Done ✅)_
 ---
 
 
@@ -19,6 +18,7 @@ _(all fixed — see Done ✅)_
 
 1. Refactor tier colors into a single source of truth — currently changing B tier color requires edits in 6+ files (tiers.js, PlayerSlotCard.jsx, MyTeam.jsx, Simulate.jsx, Market.jsx, npcTeam.js). Should be one constant/map.
 
+12. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
 ---
 
 ## Small Features 💡
@@ -26,11 +26,7 @@ _(all fixed — see Done ✅)_
 
 1. Add drag-and-drop swap in My Team — currently requires: click slot → pick from bench → then re-add displaced player manually.
 
-4. Tell me what's the current strategy who is make shots attemp. Ideally it should comes from the  Usage Percentage.
 
-5. Right now who is making the assists is random, I would suggest an algorithm to use the players on court average assists as reference, and giving some weight on posistion PG.
-
-12. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
 
 ---
 
@@ -41,12 +37,9 @@ _(all fixed — see Done ✅)_
 
 2. The overall CSS is not good cross screen. For example in my 4k screen. There are a lot of space, but in 2k screen. Some content are seem too big. It fits to mobile for some pages, but my Team screen, the player card is too big
 
-3. Have a slot machine mode which can be used to given some secret player(抽卡) to the user for some fun
+3. Have a slot machine mode which can be used to given some secret player(抽卡) to given out rookie player/Legend players
 
 4. Add a coach settings in the team.
-
-5. Ranking/salary promption overnight as we discussed at the beginning of the app development(Wonder it could be done in frontend and move to backend later)  Shows who drops the biggest salary as a stock market(Top 5 winner, top5 loser) today
-
 
 ## After Backend
 1. Simulate against each other. It can either be a live game, or simulate between your team and player's roster as a NPC team
@@ -86,7 +79,7 @@ _(all fixed — see Done ✅)_
 - [x] Salary rescaled to real NBA scale — S+ = $70M, proportional down to F = $0.8M; cache bumped to v5
 - [x] Win reward — beating the NPC team grants $5M cash, shown as a green banner on the simulate page
 - [x] Bug: Win reward cash not applied — addCash used stale closure state; fixed with functional setState form
-- [x] Feature: Sell player from My Team — Sell button in SwapDrawer with confirmation overlay; 80% salary refund via dropPlayer
+- [x] Feature: Sell player from My Team — sell penalty changed to 90% refund via dropPlayer
 - [x] Bug: Version guard clears storage on every version bump — now only clears for users below v1.0.9; future upgrades preserve data
 - [x] Bug: Fouls missing from simulate box score and live stats — now tracked when defender commits a shooting foul (FT trips)
 - [x] Bug: Simulation swaps persisted to My Team lineup — sim now uses local-only starters state (simStartersMap), My Team lineup unchanged after game
@@ -94,6 +87,12 @@ _(all fixed — see Done ✅)_
 - [x] Small: Removed Tournaments/League from Navbar
 - [x] Small: SwapDrawer current player now shows tier badge inline + ATK/DEF instead of raw PTS/REB/AST
 - [x] Small: Player names now use full first+last name in English (cards, tooltips, play-by-play)
+- [x] UI: Quarter/time labels in play log barely visible in dark mode — bumped to text-gray-400
+- [x] UI: NPC team logo smaller than My Team badge — both now 40×40; NPC image 38×38
+- [x] UI: Position text hard to read in dark mode — text-gray-600/500 → text-gray-400 across MyTeam, SwapDrawer, Market, Simulate box score & BenchSwapPanel, PlayerSlotCard empty slot
+- [x] Small: Sell penalty changed from 80% → 90% refund
+- [x] Small: Assist algorithm now weights by player avg assists + 1.5× PG bonus (both simulateGame + resumeSimulation)
+- [x] Small: Shot attacker selection now weights by Usage Possessions (FGA + 0.44×FTA + TO) × efficiency × energy — high-usage players get the ball more realistically; cache bumped to v6
 
 ---
 

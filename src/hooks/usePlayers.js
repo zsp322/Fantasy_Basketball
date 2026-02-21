@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react'
 import { fetchActivePlayers } from '../api/players'
-import { calcFantasyScore, calcOffenseRating, calcDefenseRating, resolvePosition, resolveEligiblePositions } from '../utils/scoring'
+import { calcFantasyScore, calcOffenseRating, calcDefenseRating, calcUsagePossessions, resolvePosition, resolveEligiblePositions } from '../utils/scoring'
 import { assignTiers, computeTierBoundaries } from '../utils/tiers'
 
-const CACHE_KEY = 'fbball_players_cache_v5' // bumped for salary rescale (S+=70M)
+const CACHE_KEY = 'fbball_players_cache_v7' // bumped for pf field + new ATK/DEF formulas
 const CACHE_TTL = 1000 * 60 * 60 // 1 hour
 
 export function usePlayers() {
@@ -33,9 +33,10 @@ export function usePlayers() {
           ...player,
           position:       resolvePosition(player.position, player.height),   // primary slot (single string)
           positions:      resolveEligiblePositions(player.position),          // all eligible slots (array)
-          fantasyScore:   calcFantasyScore(player.avg),   // internal — tier assignment only
-          offenseRating:  calcOffenseRating(player.avg),  // shown in UI
-          defenseRating:  calcDefenseRating(player.avg),  // shown in UI
+          fantasyScore:      calcFantasyScore(player.avg),      // internal — tier assignment only
+          offenseRating:    calcOffenseRating(player.avg),    // shown in UI
+          defenseRating:    calcDefenseRating(player.avg),    // shown in UI
+          usagePossessions: calcUsagePossessions(player.avg), // game engine attacker weighting
         }))
 
         const tiered = assignTiers(withScores)
