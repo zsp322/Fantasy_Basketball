@@ -27,7 +27,7 @@ _(all done — see Done ✅)_
 
 2. The overall CSS is not good cross screen. For example in my 4k screen. There are a lot of space, but in 2k screen. Some content are seem too big. It fits to mobile for some pages, but my Team screen, the player card is too big
 
-3. Have a slot machine mode which can be used to given some secret player(抽卡) to given out rookie player/Legend players
+3. ~~Have a slot machine mode which can be used to given some secret player(抽卡) to given out rookie player/Legend players~~ ✅ Done — see Done section
 
 4. Add a coach settings in the team.
 
@@ -96,6 +96,7 @@ _(all done — see Done ✅)_
 - [x] Small: Assist algorithm now weights by player avg assists + 1.5× PG bonus (both simulateGame + resumeSimulation)
 - [x] Small: Shot attacker selection now weights by Usage Possessions (FGA + 0.44×FTA + TO) × efficiency × energy — high-usage players get the ball more realistically; cache bumped to v6
 - [x] Small: Drag-and-drop swap in My Team — drag bench chip → starter slot (assign), starter → starter slot (swap), starter → bench strip (remove from lineup); purple glow on drop targets
+- [x] Feature: Slot Machine (抽卡) — 6 hardcoded 2025 NBA rookies (Flagg, Harper, Bailey, Edgecombe, Johnson, Maluach); $5M per spin; 3D card flip reveal; rookie contracts locked (no sell); excluded from market + init pool; /spin route + nav link
 
 ---
 

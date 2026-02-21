@@ -36,6 +36,7 @@ import Market from './pages/Market'
 import MyTeam from './pages/MyTeam'
 import League from './pages/League'
 import Simulate from './pages/Simulate'
+import SlotMachine from './pages/SlotMachine'
 import { usePlayers } from './hooks/usePlayers'
 import { useTeam } from './hooks/useTeam'
 import { useSalaryChanges } from './hooks/useSalaryChanges'
@@ -95,6 +96,7 @@ function AppInner() {
             <Route path="/market" element={<Market players={players} team={team} winners={winners} losers={losers} salaryMap={salaryMap} updatedAt={updatedAt} />} />
             <Route path="/team" element={<MyTeam team={team} salaryMap={salaryMap} />} />
             <Route path="/league" element={<League />} />
+            <Route path="/spin" element={<SlotMachine team={team} />} />
             <Route path="/simulate" element={<Simulate />} />
           </Routes>
         </div>

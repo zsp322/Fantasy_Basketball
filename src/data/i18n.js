@@ -136,6 +136,24 @@ export const T = {
     selectSub:       { en: 'Select replacement',            zh: '选择替补' },
   },
 
+  // ── Slot Machine (抽卡) ────────────────────────────────────────────────────
+  slotMachine: {
+    title:         { en: 'Rookie Draft',                       zh: '新秀签约' },
+    subtitle:      { en: 'Spin for a chance to sign a 2025 rookie',  zh: '抽取2025新秀球员' },
+    spinBtn:       { en: '🎴 Spin',                             zh: '🎴 抽签' },
+    spinCost:      { en: '$5M per spin',                        zh: '每次 $5M' },
+    available:     { en: (n, t) => `${n} / ${t} rookies available`, zh: (n, t) => `${n} / ${t} 新秀可签` },
+    allOwned:      { en: 'All rookies signed!',                 zh: '所有新秀已签约！' },
+    spinAgain:     { en: 'Spin Again',                          zh: '再次抽签' },
+    gotPlayer:     { en: 'You signed',                          zh: '成功签约' },
+    noCash:        { en: 'Not enough cash',                     zh: '现金不足' },
+    noCap:         { en: 'Not enough cap space',                zh: '薪资空间不足' },
+    rosterFull:    { en: 'Roster is full (max 15)',             zh: '阵容已满（上限15人）' },
+    rookieTag:     { en: 'ROOKIE',                              zh: '新秀' },
+    lockedNote:    { en: 'Rookie contract · locked this season', zh: '新秀合同 · 本赛季不可出售' },
+    rookieLock:    { en: 'Rookie',                              zh: '新秀' },
+  },
+
   // ── League ─────────────────────────────────────────────────────────────────
   league: {
     title:   { en: 'League',                               zh: '联赛' },

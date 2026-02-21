@@ -69,13 +69,19 @@ export default function SwapDrawer({ pos, currentPlayer, currentPlayerLiveSalary
                     <span className="text-blue-400">{t(T.shared.def, lang)} <span className="font-bold">{currentPlayer.defenseRating ?? 0}</span></span>
                   </div>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setShowSellConfirm(true)}
-                    className="text-xs text-green-400 hover:text-green-300 border border-green-800 px-2 py-1 rounded-lg"
-                  >
-                    {t(T.swapDrawer.sellBtn, lang)}
-                  </button>
+                <div className="flex gap-1 items-center">
+                  {currentPlayer.rookieLocked ? (
+                    <span className="text-xs text-purple-400 border border-purple-800/60 px-2 py-1 rounded-lg">
+                      🔒 {t(T.slotMachine.rookieLock, lang)}
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => setShowSellConfirm(true)}
+                      className="text-xs text-green-400 hover:text-green-300 border border-green-800 px-2 py-1 rounded-lg"
+                    >
+                      {t(T.swapDrawer.sellBtn, lang)}
+                    </button>
+                  )}
                   <button
                     onClick={() => { onRemove(pos); onClose() }}
                     className="text-xs text-red-400 hover:text-red-300 border border-red-800 px-2 py-1 rounded-lg"

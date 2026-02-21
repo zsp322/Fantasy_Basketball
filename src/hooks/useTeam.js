@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { SALARY_CAP, STARTING_CASH } from '../utils/teamSetup'
 
 const STORAGE_KEY = 'fbball_team'
+const SPIN_COST = 5 // $M cash cost per rookie spin
 
 function loadState() {
   try {
@@ -61,6 +62,7 @@ export function useTeam() {
   function dropPlayer(playerId, liveSalary) {
     const player = state.team.find(p => p.id === playerId)
     if (!player) return
+    if (player.rookieLocked) return // Rookie contracts cannot be sold this season
     // 10% sell penalty — refund based on live market salary if available, otherwise locked salary
     const baseSalary = liveSalary ?? player.signedSalary ?? player.tier?.salary ?? 0
     const refund = parseFloat((baseSalary * 0.9).toFixed(1))
@@ -69,6 +71,20 @@ export function useTeam() {
       team: state.team.filter(p => p.id !== playerId),
       cash: parseFloat((state.cash + refund).toFixed(1)),
     })
+  }
+
+  function spinForRookie(rookie) {
+    if (state.cash < SPIN_COST) return { ok: false, reason: 'cash' }
+    if (rosterFull) return { ok: false, reason: 'roster_full' }
+    const rookieSalary = rookie.tier?.salary ?? 0
+    if (capRemaining < rookieSalary) return { ok: false, reason: 'cap' }
+    const player = { ...rookie, signedSalary: rookieSalary, rookieLocked: true }
+    persist({
+      ...state,
+      team: [...state.team, player],
+      cash: parseFloat((state.cash - SPIN_COST).toFixed(1)),
+    })
+    return { ok: true }
   }
 
   function addCash(amount) {
@@ -93,6 +109,7 @@ export function useTeam() {
     initTeam,
     buyPlayer,
     dropPlayer,
+    spinForRookie,
     addCash,
     resetTeam,
   }

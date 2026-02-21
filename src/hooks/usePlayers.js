@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { fetchActivePlayers } from '../api/players'
 import { calcFantasyScore, calcOffenseRating, calcDefenseRating, calcUsagePossessions, resolvePosition, resolveEligiblePositions } from '../utils/scoring'
 import { assignTiers, computeTierBoundaries } from '../utils/tiers'
+import { ROOKIE_IDS } from '../data/rookiePlayers'
 
 const CACHE_KEY = 'fbball_players_cache_v7' // bumped for pf field + new ATK/DEF formulas
 const CACHE_TTL = 1000 * 60 * 60 // 1 hour
@@ -27,7 +28,9 @@ export function usePlayers() {
           }
         }
 
-        const raw = await fetchActivePlayers()
+        const rawAll = await fetchActivePlayers()
+        // Exclude 2025 rookie class — they are only obtainable via the slot machine
+        const raw = rawAll.filter(p => !ROOKIE_IDS.has(String(p.id)))
 
         const withScores = raw.map(player => ({
           ...player,
