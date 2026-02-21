@@ -21,16 +21,46 @@ _(all fixed — see Done ✅)_
 
 1. Add drag-and-drop swap in My Team — currently requires: click slot → pick from bench → then re-add displaced player manually.
 
+2. Add the time left on the current quarter on simulate page, also add the time for each generate text
+
+3. Zone-mode. If some player makes consecutive score or defense play, it means player in the zone, the player ability should buff. If some player made shots consecutively miss or faults, in freezing mode, the player should takes some debuff. If player in some mode, UI should reflect it
+
+4. Tell me what's the current strategy who is make shots attemp. Ideally it should comes from the  Usage Percentage.
+
+5. Currently there is no passing or assists on simulations, add that into the generated text, as player A assists player B. The assists happens should be reasonable. For example (Lebron could makes 10 assists per game but Gobert won't)
+
+6. Use my updated simulating_text.md to make the simulation text more interesting.
+
+9. Add a team profile pic, and also for NPC team, shows on two ends when simulate games
+
+11. Add a overtime with 5 minutes if game is tied at the end
+
+12. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
+
 ---
 
 ## Features 🚀
 > Larger new functionality, likely multi-session.
 
-1. Add more NPC teams (start with 5 total) — beating each team gives a reward (e.g. 75% of Jokic's salary). Include classic rosters like 1998 MJ Bulls (salary cap ~30M).
+1. Add more NPC teams (start with 5 total) — beating each team gives a reward (e.g. 75% of Jokic's salary). Include classic player like 1998 MJ Bulls (salary cap ~30M.).
 
-2. The overall CSS is not good cross screen. For example in my 4k screen. There are a lot of space, but in 2k screen. Some content are seem too big.
+2. The overall CSS is not good cross screen. For example in my 4k screen. There are a lot of space, but in 2k screen. Some content are seem too big. It fits to mobile for some pages, but my Team screen, the player card is too big
 
+3. Have a slot machine mode which can be used to given some secret player(抽卡) to the user for some fun
+
+4. Add a coach settings in the team.
+
+5. Ranking/salary promption overnight as we discussed at the beginning of the app development(Wonder it could be done in frontend and move to backend later)  Shows who drops the biggest salary as a stock market(Top 5 winner, top5 loser) today
+
+
+## After Backend
+1. Simulate against each other. It can either be a live game, or simulate between your team and player's roster as a NPC team
 ---
+
+
+## Innovation
+1. How does the simulation startegy work? The old game is full of choices making during the simulation, for example, like which defense it's playing like zone-defense or 1-3-1 zone-defense, or what kinda of plays etc. I am visioning this game to be mostly auto simulation. So maybe some set of plays in advance.
+
 
 ## Done ✅
 - [x] Bug: Box score at game end showed empty stats — now computed from ALL plays via computeFinalBoxScore(); subbed-out players show correct stats
@@ -62,6 +92,13 @@ _(all fixed — see Done ✅)_
 - [x] Win reward — beating the NPC team grants $5M cash, shown as a green banner on the simulate page
 - [x] Bug: Win reward cash not applied — addCash used stale closure state; fixed with functional setState form
 - [x] Feature: Sell player from My Team — Sell button in SwapDrawer with confirmation overlay; 80% salary refund via dropPlayer
+- [x] Bug: Version guard clears storage on every version bump — now only clears for users below v1.0.9; future upgrades preserve data
+- [x] Bug: Fouls missing from simulate box score and live stats — now tracked when defender commits a shooting foul (FT trips)
+- [x] Bug: Simulation swaps persisted to My Team lineup — sim now uses local-only starters state (simStartersMap), My Team lineup unchanged after game
+- [x] Small: Renamed NPC team short name to "2015-16 Warriors"
+- [x] Small: Removed Tournaments/League from Navbar
+- [x] Small: SwapDrawer current player now shows tier badge inline + ATK/DEF instead of raw PTS/REB/AST
+- [x] Small: Player names now use full first+last name in English (cards, tooltips, play-by-play)
 
 ---
 
@@ -69,4 +106,7 @@ _(all fixed — see Done ✅)_
 > Long-term vision — months of work.
 
 1. On-chain game (crypto) — low-salary players like a 15M Jokic or rookie Cooper Flagg can be sold for small profit, making slow-grind play valuable.
+
 2. JS animation engine for actual in-game visuals.
+
+3. Publish to more users?

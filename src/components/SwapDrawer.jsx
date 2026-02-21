@@ -9,7 +9,6 @@ import { T, t } from '../data/i18n'
 export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign, onRemove, onSell, onClose }) {
   const { lang } = useSettings()
   const [showSellConfirm, setShowSellConfirm] = useState(false)
-  const stat = (val) => val != null ? Number(val).toFixed(1) : '—'
 
   const sellAmount = parseFloat(((currentPlayer?.tier?.salary ?? 0) * 0.8).toFixed(1))
 
@@ -60,13 +59,16 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
               <div className="flex items-center gap-3 bg-gray-900 rounded-xl p-3">
                 <PlayerAvatar player={currentPlayer} size="md" />
                 <div className="flex-1">
-                  <div className="text-white font-semibold">{getPlayerName(currentPlayer, lang)}</div>
-                  <div className="text-gray-400 text-xs">
-                    {stat(currentPlayer.avg?.pts)} PTS · {stat(currentPlayer.avg?.reb)} REB · {stat(currentPlayer.avg?.ast)} AST
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-white font-semibold">{getPlayerName(currentPlayer, lang)}</div>
+                    <TierBadge tier={currentPlayer.tier} size="sm" />
+                  </div>
+                  <div className="text-xs mt-0.5 flex gap-2">
+                    <span className="text-orange-400">{t(T.shared.atk, lang)} <span className="font-bold">{currentPlayer.offenseRating ?? 0}</span></span>
+                    <span className="text-blue-400">{t(T.shared.def, lang)} <span className="font-bold">{currentPlayer.defenseRating ?? 0}</span></span>
                   </div>
                 </div>
-                <TierBadge tier={currentPlayer.tier} size="md" />
-                <div className="flex gap-1 ml-1">
+                <div className="flex gap-1">
                   <button
                     onClick={() => setShowSellConfirm(true)}
                     className="text-xs text-green-400 hover:text-green-300 border border-green-800 px-2 py-1 rounded-lg"

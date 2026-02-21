@@ -148,8 +148,9 @@ export const T = {
     ast:  { en: 'AST', zh: '助攻' },
     stl:  { en: 'STL', zh: '抢断' },
     blk:  { en: 'BLK', zh: '盖帽' },
-    to:   { en: 'TO',  zh: '失误' },
-    min:  { en: 'MIN', zh: '时间' },
+    to:   { en: 'TO',   zh: '失误' },
+    foul: { en: 'FOUL', zh: '犯规' },
+    min:  { en: 'MIN',  zh: '时间' },
   },
 }
 

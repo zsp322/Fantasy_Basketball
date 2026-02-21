@@ -249,7 +249,7 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
 function computeLiveBoxScore(plays) {
   const boxes = {}
   function box(id) {
-    if (!boxes[id]) boxes[id] = { pts: 0, to: 0, stl: 0, blk: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, fta: 0, ftm: 0, player: null }
+    if (!boxes[id]) boxes[id] = { pts: 0, to: 0, stl: 0, blk: 0, foul: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, fta: 0, ftm: 0, player: null }
     return boxes[id]
   }
   for (const play of plays) {
@@ -272,6 +272,7 @@ function computeLiveBoxScore(plays) {
       b.player = def
       if (play.specialEvent === 'steal') b.stl++
       if (play.specialEvent === 'block') b.blk++
+      if (play.shotType === 'FT') b.foul++  // shooting foul committed
     }
   }
   return boxes
@@ -285,7 +286,7 @@ function computeFinalBoxScore(plays) {
   const npcTeam = {}
 
   function getBox(boxes, id) {
-    if (!boxes[id]) boxes[id] = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, appearances: 0, player: null }
+    if (!boxes[id]) boxes[id] = { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, appearances: 0, player: null }
     return boxes[id]
   }
 
@@ -320,6 +321,7 @@ function computeFinalBoxScore(plays) {
       b.appearances++
       if (play.specialEvent === 'steal') b.stl++
       if (play.specialEvent === 'block') b.blk++
+      if (play.shotType === 'FT') b.foul++  // shooting foul committed
       // Defensive rebound on a missed shot with no steal
       if (!play.made && !play.turnover && play.specialEvent !== 'steal' && play.specialEvent !== 'off_reb') {
         if (Math.random() < 0.70) b.reb++
@@ -342,10 +344,10 @@ function LiveBoxScoreFloat({ myStartersList, currentNpcActive, visiblePlays, onC
   const boxes = useMemo(() => computeLiveBoxScore(visiblePlays), [visiblePlays])
 
   const myLabel  = lang === 'zh' ? '我的球队' : 'My Team'
-  const npcLabel = lang === 'zh' ? '勇士王朝' : 'GSW Dynasty'
+  const npcLabel = NPC_TEAM_SHORT
   const hdrs     = lang === 'zh'
-    ? ['球员', '分', '出手', '三分', '抢断', '盖帽', '失误']
-    : ['Player', 'PTS', 'FG', '3PT', 'STL', 'BLK', 'TO']
+    ? ['球员', '分', '出手', '三分', '抢断', '盖帽', '失误', '犯规']
+    : ['Player', 'PTS', 'FG', '3PT', 'STL', 'BLK', 'TO', 'FOUL']
 
   function rows(players) {
     return players.map(p => {
@@ -353,7 +355,7 @@ function LiveBoxScoreFloat({ myStartersList, currentNpcActive, visiblePlays, onC
       return (
         <tr key={p.id} className="border-b border-gray-800/40">
           <td className="px-2 py-1 text-white font-medium text-xs whitespace-nowrap">
-            {lang === 'zh' ? getPlayerShortName(p, 'zh') : p.last_name}
+            {getPlayerShortName(p, lang)}
             <span className="text-gray-600 ml-1 text-xs">{p.playingAs ?? p.position}</span>
           </td>
           <td className="px-2 py-1 text-right text-orange-300 font-bold text-xs">{b?.pts ?? 0}</td>
@@ -362,6 +364,7 @@ function LiveBoxScoreFloat({ myStartersList, currentNpcActive, visiblePlays, onC
           <td className="px-2 py-1 text-right text-yellow-300 text-xs">{b?.stl ?? 0}</td>
           <td className="px-2 py-1 text-right text-purple-300 text-xs">{b?.blk ?? 0}</td>
           <td className="px-2 py-1 text-right text-red-400 text-xs">{b?.to ?? 0}</td>
+          <td className="px-2 py-1 text-right text-pink-300 text-xs">{b?.foul ?? 0}</td>
         </tr>
       )
     })
@@ -621,6 +624,7 @@ function BoxScoreTable({ players, starterIds, boxEntries, label, lang }) {
             <th className="px-2 py-1 text-right font-medium text-yellow-400">{t(T.shared.stl, lang)}</th>
             <th className="px-2 py-1 text-right font-medium text-purple-400">{t(T.shared.blk, lang)}</th>
             <th className="px-2 py-1 text-right font-medium text-red-400">{t(T.shared.to, lang)}</th>
+            <th className="px-2 py-1 text-right font-medium text-pink-400">{t(T.shared.foul, lang)}</th>
             <th className="px-2 py-1 text-right font-medium">FG</th>
             <th className="px-2 py-1 text-right font-medium">3PT</th>
           </tr>
@@ -647,11 +651,12 @@ function BoxScoreTable({ players, starterIds, boxEntries, label, lang }) {
                     <td className="px-2 py-1 text-right text-yellow-300">{b.stl}</td>
                     <td className="px-2 py-1 text-right text-purple-300">{b.blk}</td>
                     <td className="px-2 py-1 text-right text-red-400">{b.to}</td>
+                    <td className="px-2 py-1 text-right text-pink-300">{b.foul ?? 0}</td>
                     <td className="px-2 py-1 text-right text-gray-400">{b.fgm}/{b.fga}</td>
                     <td className="px-2 py-1 text-right text-gray-400">{b.fg3m}/{b.fg3a}</td>
                   </>
                 ) : (
-                  <td colSpan={9} className="px-2 py-1 text-right text-gray-700 text-xs">{didNotPlay}</td>
+                  <td colSpan={10} className="px-2 py-1 text-right text-gray-700 text-xs">{didNotPlay}</td>
                 )}
               </tr>
             )
@@ -665,15 +670,20 @@ function BoxScoreTable({ players, starterIds, boxEntries, label, lang }) {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function Simulate() {
   const { team: roster, addCash } = useTeam()
-  const { starters, assign } = useStarters(roster)
+  const { starters } = useStarters(roster)   // persisted lineup — only read, never written during sim
   const { lang } = useSettings()
 
+  // During simulation, swaps are kept in local state so My Team lineup is never affected.
+  // simStartersMap is null when not simulating; initialized from persisted starters on game start.
+  const [simStartersMap, setSimStartersMap] = useState(null)
+  const activeStarters = simStartersMap ?? starters
+
   const myStartersList = POS_ORDER
-    .map(pos => starters[pos] ? { ...starters[pos], playingAs: pos } : null)
+    .map(pos => activeStarters[pos] ? { ...activeStarters[pos], playingAs: pos } : null)
     .filter(Boolean)
   const hasFullLineup = myStartersList.length === 5
 
-  const starterIds = Object.values(starters).filter(Boolean).map(p => p.id)
+  const starterIds = Object.values(activeStarters).filter(Boolean).map(p => p.id)
   const bench = roster.filter(p => !starterIds.includes(p.id))
 
   const [gameResult, setGameResult]         = useState(null)
@@ -696,8 +706,8 @@ export default function Simulate() {
   const lastAutoSubRef   = useRef(null) // { playerId, revealedWhen } — prevent same-tick re-sub
   const benchedAtRef     = useRef({})  // { [playerId]: { revealedWhen, energyWhenBenched } }
   const rewardGivenRef   = useRef(false)
-  const startersRef      = useRef(starters)
-  useEffect(() => { startersRef.current = starters }, [starters])
+  const startersRef      = useRef(activeStarters)
+  useEffect(() => { startersRef.current = activeStarters }, [activeStarters])
   // Hold gameResult in a ref so startInterval closure can access the latest value
   const gameResultRef = useRef(null)
   useEffect(() => { gameResultRef.current = gameResult }, [gameResult])
@@ -815,7 +825,7 @@ export default function Simulate() {
       benchedAtRef.current[p.id] = { revealedWhen: revealed, energyWhenBenched: energy }
       lastAutoSubRef.current = { playerId: p.id, revealedWhen: revealed }
 
-      assign(pos, sub)
+      assignLocal(pos, sub)
 
       const manualList = POS_ORDER.map(slotPos => {
         if (slotPos === pos) return { ...sub, playingAs: slotPos }
@@ -837,6 +847,18 @@ export default function Simulate() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealed, autoSim])
 
+  // ── Sim-local assign — updates simStartersMap only, never persisted starters ──
+  function assignLocal(pos, player) {
+    setSimStartersMap(prev => {
+      const next = { ...(prev ?? starters) }
+      for (const k of Object.keys(next)) {
+        if (next[k]?.id === player.id) next[k] = null
+      }
+      next[pos] = player
+      return next
+    })
+  }
+
   // ── Handlers ────────────────────────────────────────────────────────────
   function handleSimulate() {
     if (!hasFullLineup) return
@@ -846,6 +868,7 @@ export default function Simulate() {
     benchedAtRef.current   = {}
     rewardGivenRef.current = false
     setRewardGranted(false)
+    setSimStartersMap({ ...starters })   // snapshot persisted lineup for this game session
     const result = simulateGame(myStartersList, npcStarters, [...npcBench])
     setGameResult(result)
     setRevealed(0)
@@ -863,6 +886,7 @@ export default function Simulate() {
     benchedAtRef.current   = {}
     rewardGivenRef.current = false
     setRewardGranted(false)
+    setSimStartersMap(null)   // release sim-local state; My Team lineup is unchanged
     setGameResult(null)
     setRevealed(0)
     setIsAnimating(false)
@@ -930,12 +954,12 @@ export default function Simulate() {
       benchedAtRef.current[swappedOutPlayer.id] = { revealedWhen: revealed, energyWhenBenched: theirEnergy }
     }
 
-    assign(pos, newPlayer)
+    assignLocal(pos, newPlayer)
 
     if (gameResult && lastPlay) {
       const manualList = POS_ORDER.map(p => {
         if (p === pos) return { ...newPlayer, playingAs: pos }
-        const existing = starters[p]
+        const existing = activeStarters[p]
         if (!existing || existing.id === swappedOutPlayer.id || existing.id === newPlayer.id) return null
         return { ...existing, playingAs: p }
       }).filter(Boolean)

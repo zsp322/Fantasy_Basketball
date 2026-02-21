@@ -7,7 +7,7 @@
 //   C   → Festus Ezeli
 
 export const NPC_TEAM_NAME = '2015-16 Golden State Warriors'
-export const NPC_TEAM_SHORT = '73-9 Dynasty'
+export const NPC_TEAM_SHORT = '2015-16 Warriors'
 
 export const npcStarters = [
   {

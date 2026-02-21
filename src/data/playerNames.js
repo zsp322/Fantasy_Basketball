@@ -276,7 +276,7 @@ export function getPlayerName(player, lang) {
  */
 export function getPlayerShortName(player, lang) {
   if (!player) return ''
-  if (lang !== 'zh') return player.last_name
+  if (lang !== 'zh') return `${player.first_name ?? ''} ${player.last_name ?? ''}`.trim()
   const key = `${player.first_name} ${player.last_name}`
   if (ZH_SHORT_OVERRIDES[key]) return ZH_SHORT_OVERRIDES[key]
   const full = ZH_NAMES[key]

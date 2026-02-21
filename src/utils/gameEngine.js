@@ -104,8 +104,8 @@ function getFtChance(avg) {
 // ─── Play descriptions ────────────────────────────────────────────────────────
 // Returns { en, zh } with player names already substituted in.
 function buildDescription(play) {
-  const atkEn  = play.attacker.last_name
-  const defEn  = play.defender?.last_name ?? ''
+  const atkEn  = getPlayerShortName(play.attacker, 'en')
+  const defEn  = play.defender ? getPlayerShortName(play.defender, 'en') : ''
   const atkZh  = getPlayerShortName(play.attacker, 'zh')
   const defZh  = play.defender ? getPlayerShortName(play.defender, 'zh') : ''
   const tired  = getEnergyLabel(play.atkEnergyAfter)
@@ -133,7 +133,7 @@ function buildDescription(play) {
 
 // ─── Box score ────────────────────────────────────────────────────────────────
 function emptyBox() {
-  return { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, fta: 0, ftm: 0 }
+  return { pts: 0, reb: 0, ast: 0, stl: 0, blk: 0, to: 0, foul: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, fta: 0, ftm: 0 }
 }
 
 function updateBox(box, id, result, role) {
@@ -155,6 +155,7 @@ function updateBox(box, id, result, role) {
   } else {
     if (result.specialEvent === 'steal') e.stl++
     if (result.specialEvent === 'block') e.blk++
+    if (result.shotType === 'FT') e.foul++   // defender committed a shooting foul
     if (!result.made && !result.turnover && result.specialEvent !== 'steal') {
       if (Math.random() < 0.70) e.reb++
     }
