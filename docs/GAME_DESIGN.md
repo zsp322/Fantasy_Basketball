@@ -286,14 +286,16 @@ Accumulated per player during simulation:
 
 | Player | Pos | ATK | DEF | Role |
 |---|---|---|---|---|
-| Stephen Curry | PG | 261 | 115 | MVP, all-time shooter |
-| Klay Thompson | SG | 155 | 95 | Splash Brother, perimeter lockdown |
-| Harrison Barnes | SF | 74 | 65 | Role player, wing |
-| Draymond Green | PF | 130 | 175 | DPOY, system anchor |
-| Andrew Bogut | C | 54 | 152 | Rim protector, 2.3 BPG |
-| Shaun Livingston | SG | 56 | 58 | Backup guard |
-| Andre Iguodala | SF | 71 | 130 | 2015 Finals MVP, defensive stopper |
-| Festus Ezeli | C | 23 | 68 | Backup big |
+| Stephen Curry | PG | 265 | 98 | MVP, all-time shooter |
+| Klay Thompson | SG | 157 | 63 | Splash Brother, perimeter lockdown |
+| Harrison Barnes | SF | 73 | 59 | Role player, wing |
+| Draymond Green | PF | 131 | 117 | DPOY, system anchor |
+| Andrew Bogut | C | 55 | 149 | Rim protector, 2.3 BPG |
+| Shaun Livingston | SG | 57 | 50 | Backup guard |
+| Andre Iguodala | SF | 70 | 112 | 2015 Finals MVP, defensive stopper |
+| Festus Ezeli | C | 23 | 51 | Backup big |
+
+NPC default scheme: **Ball Movement** offense + **Man-to-Man** defense (reflects the Warriors' historical identity).
 
 ---
 
@@ -517,4 +519,114 @@ The hook signature, return shape, and all UI components are unchanged. The backe
 **localStorage keys used (frontend only — safe to drop after migration):**
 - `fbball_salary_state_v1` — per-player salary + drift counters
 - `fbball_tier_boundaries` — snapshot of fantasyScore ranges per tier
+
+---
+
+## 15. Pre-Game Scheme System *(planned — not yet implemented)*
+
+### Philosophy
+
+The game is auto-simulated — the user doesn't make plays mid-possession. Strategy lives in the **pre-game phase**: before hitting Simulate, the user picks one offensive scheme and one defensive scheme. These function as a single multiplier layer applied inside the engine, requiring no new play logic.
+
+Both teams have schemes. NPC Warriors default: **Ball Movement** + **Man-to-Man**.
+
+---
+
+### Offensive Schemes
+
+| Scheme | Description | Mechanical Effect |
+|--------|-------------|-------------------|
+| **Isolation** | Route ball to your best player | Top player's usage weight ×3.0; AST probability −30% |
+| **Ball Movement** | Spread the floor, share the ball | Usage weights equalized (flattened toward mean); AST probability +40% |
+| **3-Point Heavy** | Bomb from deep | On a made FG, probability of it being a 3pt outcome scales to `fg3m / fgm` rather than default shot profile |
+| **Run & Gun** *(complex)* | Push pace, more possessions | Possessions per quarter: 20→24; energy drain rate +20% for all players |
+
+*Run & Gun is flagged complex because it changes the loop count, which affects clock calculation and energy math. Implement last.*
+
+---
+
+### Defensive Schemes
+
+| Scheme | Description | Mechanical Effect |
+|--------|-------------|-------------------|
+| **Man-to-Man** | 1-on-1 lockdown coverage | Current default behavior — position mismatch multiplier fully applied |
+| **Zone Defense** | Pack the paint, protect the rim | Position mismatch penalty halved; team average DEF used instead of individual DEF |
+| **Pressure Defense** | Full-court, high-activity | Opponent TO chance +25%; your players' energy drain +15% per possession |
+
+---
+
+### Implementation Plan
+
+**1. Data: `src/data/gameSchemes.js`** — a new pure data file
+
+```js
+export const OFFENSE_SCHEMES = {
+  isolation:    { id: 'isolation',    usageTopMult: 3.0, usageFlat: false, astMult: 0.70 },
+  ballMovement: { id: 'ballMovement', usageTopMult: 1.0, usageFlat: true,  astMult: 1.40 },
+  threeHeavy:   { id: 'threeHeavy',  usageTopMult: 1.0, usageFlat: false, astMult: 1.00, force3Rate: true },
+  runAndGun:    { id: 'runAndGun',   possPerQ: 24, energyDrainMult: 1.20 },
+}
+
+export const DEFENSE_SCHEMES = {
+  manToMan:  { id: 'manToMan',  mismatchMult: 1.0, useTeamDef: false, oppToMult: 1.0,  energyDrainMult: 1.0  },
+  zone:      { id: 'zone',      mismatchMult: 0.5, useTeamDef: true,  oppToMult: 1.0,  energyDrainMult: 1.0  },
+  pressure:  { id: 'pressure',  mismatchMult: 1.0, useTeamDef: false, oppToMult: 1.25, energyDrainMult: 1.15 },
+}
+```
+
+**2. Engine: `simulateGame(myStarters, npcStarters, energyMap, gameConfig)`**
+
+Add `gameConfig` as a fourth parameter with a safe default:
+```js
+const DEFAULT_CONFIG = {
+  myOffScheme:  OFFENSE_SCHEMES.ballMovement,
+  myDefScheme:  DEFENSE_SCHEMES.manToMan,
+  npcOffScheme: OFFENSE_SCHEMES.ballMovement,
+  npcDefScheme: DEFENSE_SCHEMES.manToMan,
+}
+```
+
+Inside the engine, scheme effects are applied at three touch points:
+- **Attacker selection**: apply `usageTopMult` / `usageFlat` to weight calculation
+- **AST probability**: multiply by `astMult`
+- **Mismatch multiplier**: multiply by `defScheme.mismatchMult` before applying to power
+- **TO chance**: multiply opponent's TO probability by `oppToMult`
+- **Energy drain**: multiply each player's drain by `defScheme.energyDrainMult`
+
+Same changes applied to `resumeSimulation()` — it already accepts the same parameters as `simulateGame`.
+
+**3. State: `useGameConfig` hook** (or simple `useState` in `Simulate.jsx`)
+
+```js
+const [myOffScheme, setMyOffScheme] = useState('ballMovement')
+const [myDefScheme, setMyDefScheme] = useState('manToMan')
+```
+
+Persisted to localStorage: `fbball_game_config` so the user's last scheme is remembered.
+
+**4. UI: Pre-game panel on `Simulate.jsx`**
+
+Shown only when the game has not started yet (`plays.length === 0`). Two rows of scheme cards, one for offense and one for defense. Each card shows the scheme name, a short description, and the key mechanical effect. Selected scheme has a highlighted border.
+
+Layout sketch:
+```
+┌─────────────────────────────────────────────────────┐
+│  OFFENSIVE SCHEME          DEFENSIVE SCHEME          │
+│  [ Isolation ] [✓Ball Move] [3-Heavy] [Run&Gun]     │
+│  [ Man-to-Man] [   Zone   ] [Pressure]              │
+│                                                      │
+│              [ ▶ Start Game ]                        │
+└─────────────────────────────────────────────────────┘
+```
+
+**5. i18n**: All scheme names and descriptions added to `T` in `i18n.js`.
+
+---
+
+### Design Constraints
+
+- Schemes are **locked in at game start** — cannot be changed mid-game (only subs allowed during pause)
+- Schemes affect both sides: user picks theirs, NPC scheme is hardcoded per opponent
+- Run & Gun is implemented last due to clock/energy complexity — start with the other 6 schemes
+- Keep scheme constants in a pure data file (no React) so they migrate cleanly to backend later
 

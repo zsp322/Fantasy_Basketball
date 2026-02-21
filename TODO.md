@@ -41,6 +41,12 @@ _(all fixed — see Done ✅)_
 
 4. Add a coach settings in the team.
 
+5. **Pre-Game Scheme System** — user picks offensive + defensive scheme before simulation starts. Full design in `docs/GAME_DESIGN.md §15`.
+   - **Files to create**: `src/data/gameSchemes.js` (pure data: scheme constants)
+   - **Files to modify**: `src/utils/gameEngine.js` (add `gameConfig` param to `simulateGame` + `resumeSimulation`), `src/pages/Simulate.jsx` (scheme picker UI pre-game), `src/data/i18n.js` (scheme name/desc strings)
+   - **Scheme order**: implement 6 first (Isolation, Ball Movement, 3-Heavy, Man-to-Man, Zone, Pressure). Run & Gun last (changes possessions/clock math).
+   - **NPC schemes**: hardcoded per opponent; Warriors = Ball Movement + Man-to-Man
+
 ## After Backend
 1. Simulate against each other. It can either be a live game, or simulate between your team and player's roster as a NPC team
 ---
