@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom'
 import { useTeam } from '../hooks/useTeam'
 import { useStarters, POS_ORDER } from '../hooks/useStarters'
 import { simulateGame, resumeSimulation, getEnergyMultiplier, getPosMismatchMult } from '../utils/gameEngine'
-import { npcStarters, npcBench, NPC_TEAM_NAME, NPC_TEAM_SHORT } from '../data/npcTeam'
+import { pickZoneText } from '../data/playTexts'
+import { npcStarters, npcBench, NPC_TEAM_NAME, NPC_TEAM_SHORT, NPC_TEAM_LOGO } from '../data/npcTeam'
 import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerShortName, getPlayerName } from '../data/playerNames'
@@ -134,8 +135,30 @@ function StatTooltip({ player, energyPct, rect, side, lang }) {
   )
 }
 
+// ─── Zone badge helper ─────────────────────────────────────────────────────────
+function ZoneBadge({ zone }) {
+  if (!zone) return null
+  const cfg = {
+    fire:   { emoji: '🔥🔥', bg: 'rgba(234,88,12,0.85)',   shadow: '0 0 8px rgba(251,146,60,0.8)' },
+    hot:    { emoji: '🔥',   bg: 'rgba(245,158,11,0.80)',   shadow: '0 0 6px rgba(251,191,36,0.7)' },
+    cold:   { emoji: '❄️',   bg: 'rgba(59,130,246,0.75)',   shadow: '0 0 6px rgba(147,197,253,0.6)' },
+    frozen: { emoji: '❄️❄️', bg: 'rgba(30,64,175,0.85)',   shadow: '0 0 8px rgba(96,165,250,0.8)' },
+  }[zone]
+  if (!cfg) return null
+  return (
+    <div style={{
+      position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
+      background: cfg.bg, boxShadow: cfg.shadow,
+      borderRadius: 6, padding: '1px 5px', fontSize: 10, fontWeight: 700,
+      whiteSpace: 'nowrap', zIndex: 10, pointerEvents: 'none',
+    }}>
+      {cfg.emoji}
+    </div>
+  )
+}
+
 // ─── Bigger vertical player card ──────────────────────────────────────────────
-function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
+function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang, zone }) {
   const [hoverRect, setHoverRect] = useState(null)
   const cardRef = useRef(null)
   const tierName    = player?.tier?.name
@@ -158,6 +181,12 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
     if (onClick && cardRef.current) onClick(player, cardRef.current.getBoundingClientRect())
   }
 
+  const zoneGlow = zone === 'fire'   ? '0 0 18px 6px rgba(251,146,60,0.65), '
+                 : zone === 'hot'    ? '0 0 12px 4px rgba(251,191,36,0.5), '
+                 : zone === 'frozen' ? '0 0 18px 6px rgba(96,165,250,0.65), '
+                 : zone === 'cold'   ? '0 0 12px 4px rgba(147,197,253,0.45), '
+                 : ''
+
   return (
     <div ref={cardRef} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}
       className={`flex flex-col items-center gap-1 transition-all duration-200 ${isGassed ? 'opacity-55' : 'opacity-100'}`}
@@ -169,9 +198,11 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
         className={`focus:outline-none w-full flex flex-col items-center gap-1 ${onClick ? 'hover:scale-105 cursor-pointer' : 'cursor-default'} transition-transform duration-200`}
       >
         {/* Photo card */}
+        <div style={{ position: 'relative', width: 'clamp(80px, 9vw, 110px)' }}>
+          <ZoneBadge zone={zone} />
         <div
           style={{
-            width: 'clamp(80px, 9vw, 110px)',
+            width: '100%',
             height: 'clamp(90px, 10vw, 120px)',
             border: `2px solid ${mismatchSevere ? '#ef4444' : hasMismatch ? '#f59e0b' : borderColor}`,
             borderRadius: 10,
@@ -180,7 +211,7 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
             position: 'relative',
             boxShadow: mismatchSevere
               ? `0 0 18px 4px rgba(239,68,68,0.4), 0 4px 16px rgba(0,0,0,0.7)`
-              : `0 0 16px 3px ${borderColor}55, 0 4px 16px rgba(0,0,0,0.7)`,
+              : `${zoneGlow}0 0 16px 3px ${borderColor}55, 0 4px 16px rgba(0,0,0,0.7)`,
           }}
         >
           {player.headshot ? (
@@ -219,6 +250,7 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
             </div>
           )}
         </div>
+        </div>{/* end zone wrapper */}
 
         {/* Name */}
         <div className="text-white font-semibold truncate text-center w-full" style={{ fontSize: 10 }}>
@@ -537,7 +569,7 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
 }
 
 // ─── Team column (vertical list) ──────────────────────────────────────────────
-function TeamColumn({ label, players, energies, side, canSwap, onCardClick, lang }) {
+function TeamColumn({ label, players, energies, zones, side, canSwap, onCardClick, lang }) {
   return (
     <div
       className="relative flex-shrink-0 flex flex-col h-full"
@@ -565,6 +597,7 @@ function TeamColumn({ label, players, energies, side, canSwap, onCardClick, lang
             key={p.id}
             player={p}
             energyPct={energies?.[p.id] ?? null}
+            zone={zones?.[p.id] ?? null}
             side={side}
             onClick={canSwap ? (player, rect) => onCardClick(player, rect, side) : undefined}
             showSwapHint={canSwap}
@@ -581,6 +614,18 @@ function PlayRow({ play, isNew, lang }) {
   const desc = lang === 'zh'
     ? (play.description?.zh || play.description?.en || play.description || '')
     : (play.description?.en || play.description || '')
+
+  // Zone notification text (shown below the play if player just entered a zone)
+  const zoneNotif = play.zoneEntered && play.attacker
+    ? (() => {
+        const t = pickZoneText(play.zoneEntered)
+        if (!t) return null
+        const name = getPlayerShortName(play.attacker, lang)
+        return lang === 'zh'
+          ? t.zh.replace('{atk}', name)
+          : t.en.replace('{atk}', name)
+      })()
+    : null
 
   // Quarter label: Q1-Q4 or "OT"
   const otNum  = play.quarter > 4 ? play.quarter - 4 : 0
@@ -626,16 +671,24 @@ function PlayRow({ play, isNew, lang }) {
     : <span className="text-yellow-400 font-bold shrink-0">○</span>
 
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 ${isNew ? 'bg-white/5' : ''}`} style={{ fontSize: 13 }}>
-      {/* Quarter + clock inline */}
-      <div className="flex items-center gap-1 shrink-0" style={{ minWidth: 56 }}>
-        <span className="text-gray-600" style={{ fontSize: 11 }}>{qLabel}</span>
-        {clockStr && <span className="text-gray-700" style={{ fontSize: 10 }}>{clockStr}</span>}
+    <>
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 ${isNew ? 'bg-white/5' : ''}`} style={{ fontSize: 13 }}>
+        {/* Quarter + clock inline */}
+        <div className="flex items-center gap-1 shrink-0" style={{ minWidth: 56 }}>
+          <span className="text-gray-600" style={{ fontSize: 11 }}>{qLabel}</span>
+          {clockStr && <span className="text-gray-700" style={{ fontSize: 10 }}>{clockStr}</span>}
+        </div>
+        {dot}
+        <span className={`flex-1 ${textColor}`}>{desc}</span>
+        <span className="text-gray-600 shrink-0" style={{ fontSize: 11 }}>({play.score[0]}–{play.score[1]})</span>
       </div>
-      {dot}
-      <span className={`flex-1 ${textColor}`}>{desc}</span>
-      <span className="text-gray-600 shrink-0" style={{ fontSize: 11 }}>({play.score[0]}–{play.score[1]})</span>
-    </div>
+      {zoneNotif && (
+        <div className="px-4 pb-1" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
+          color: play.zoneEntered === 'fire' || play.zoneEntered === 'hot' ? '#fb923c' : '#93c5fd' }}>
+          {zoneNotif}
+        </div>
+      )}
+    </>
   )
 }
 
@@ -796,6 +849,21 @@ export default function Simulate() {
 
   const usedNpcIds = new Set(currentNpcActive.map(p => p.id))
   const remainingNpcBench = npcBench.filter(p => !usedNpcIds.has(p.id))
+
+  // Derive current zone state for each player from visible plays (in order).
+  // Sub events clear the subbed-out player's zone so returning subs start fresh.
+  const zoneMap = useMemo(() => {
+    const map = {}
+    for (const play of visiblePlays) {
+      if (play.isSub) {
+        if (play.subOut) map[play.subOut.id] = null
+        continue
+      }
+      if (!play.attacker) continue
+      map[play.attacker.id] = play.atkZone ?? null
+    }
+    return map
+  }, [visiblePlays])
 
   // ── Animation interval ──────────────────────────────────────────────────
   function startInterval() {
@@ -1045,6 +1113,14 @@ export default function Simulate() {
         style={{ background: 'var(--bg-overlay-mid)', backdropFilter: 'blur(8px)' }}>
 
         <div className="flex flex-col items-center" style={{ minWidth: 56 }}>
+          {/* My team logo placeholder — basketball emoji styled as badge */}
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: 'linear-gradient(135deg, #ea580c, #b45309)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 20, marginBottom: 2,
+            boxShadow: isDone && gameResult?.winner === 'my' ? '0 0 14px 4px rgba(251,146,60,0.7)' : '0 2px 8px rgba(0,0,0,0.5)',
+          }}>🏀</div>
           <div className="text-orange-400 font-bold tracking-wide" style={{ fontSize: 9 }}>
             {t(T.simulate.myTeamLabel, lang)}
           </div>
@@ -1114,6 +1190,16 @@ export default function Simulate() {
         </div>
 
         <div className="flex flex-col items-center" style={{ minWidth: 56 }}>
+          {/* NPC team logo */}
+          <div style={{
+            width: 36, height: 36, borderRadius: '50%',
+            background: '#1e293b', border: '1px solid #374151',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            overflow: 'hidden', marginBottom: 2,
+            boxShadow: isDone && gameResult?.winner === 'npc' ? '0 0 14px 4px rgba(250,204,21,0.7)' : '0 2px 8px rgba(0,0,0,0.5)',
+          }}>
+            <img src={NPC_TEAM_LOGO} alt="GSW" style={{ width: 30, height: 30, objectFit: 'contain' }} />
+          </div>
           <div className="text-yellow-400 font-bold tracking-wide" style={{ fontSize: 9 }}>{NPC_TEAM_SHORT}</div>
           <div className="font-black tabular-nums leading-none"
             style={{ fontSize: 44, color: isDone && gameResult.winner === 'npc' ? '#facc15' : 'var(--text-primary)' }}>
@@ -1130,6 +1216,7 @@ export default function Simulate() {
           label={t(T.simulate.myTeamLabel, lang)}
           players={myStartersList}
           energies={liveMyEnergy}
+          zones={zoneMap}
           side="left"
           canSwap={canSwap}
           onCardClick={handleCardClick}
@@ -1277,6 +1364,7 @@ export default function Simulate() {
           label={NPC_TEAM_SHORT}
           players={currentNpcActive}
           energies={liveNpcEnergy}
+          zones={zoneMap}
           side="right"
           canSwap={false}
           onCardClick={null}

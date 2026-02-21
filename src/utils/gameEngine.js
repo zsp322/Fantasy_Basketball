@@ -65,6 +65,44 @@ function getEnergyLabel(energy) {
   return '(EXHAUSTED)'
 }
 
+// ─── Zone / streak helpers ───────────────────────────────────────────────────
+// Positive streak = consecutive made FGs; negative = consecutive misses/TOs.
+// FT shots do NOT affect streak.
+function getZoneMult(streak) {
+  if (streak >= 5) return 1.30  // ON FIRE
+  if (streak >= 3) return 1.15  // HOT
+  if (streak <= -5) return 0.75 // FROZEN
+  if (streak <= -3) return 0.85 // COLD
+  return 1.0
+}
+
+export function getZoneLabel(streak) {
+  if (streak >= 5) return 'fire'
+  if (streak >= 3) return 'hot'
+  if (streak <= -5) return 'frozen'
+  if (streak <= -3) return 'cold'
+  return null
+}
+
+function updateStreak(streakMap, id, result) {
+  const cur = streakMap[id] ?? 0
+  if (result.shotType === 'FT') return
+  if (result.turnover || !result.made) {
+    streakMap[id] = cur > 0 ? -1 : cur - 1
+  } else {
+    streakMap[id] = cur < 0 ? 1 : cur + 1
+  }
+}
+
+// Returns the zone label if the player JUST crossed a threshold (for notifications)
+function getZoneEntered(before, after) {
+  if (before <  3 && after >=  3 && after <  5) return 'hot'
+  if (before <  5 && after >=  5)               return 'fire'
+  if (before > -3 && after <= -3 && after > -5) return 'cold'
+  if (before > -5 && after <= -5)               return 'frozen'
+  return null
+}
+
 // ─── Shot logic ──────────────────────────────────────────────────────────────
 function pickShotType(avg) {
   const fga      = Math.max(avg?.fga ?? 1, 1)
@@ -160,7 +198,7 @@ function updateBox(box, id, result, role) {
 }
 
 // ─── Core possession simulator ───────────────────────────────────────────────
-function simulatePossession(attacker, defender, atkEnergy, defEnergy) {
+function simulatePossession(attacker, defender, atkEnergy, defEnergy, zoneMult = 1.0) {
   const atkMult    = getEnergyMultiplier(atkEnergy)
   const defMult    = getEnergyMultiplier(defEnergy)
   const atkPosMult = getPosMismatchMult(attacker.position, attacker.playingAs, attacker.positions)
@@ -183,7 +221,7 @@ function simulatePossession(attacker, defender, atkEnergy, defEnergy) {
   }
 
   const baseChance = shotType === '3pt' ? get3ptChance(avg) : get2ptChance(avg)
-  const atkPower   = (attacker.offenseRating ?? 80) * atkMult * atkPosMult * rand(0.7, 1.3)
+  const atkPower   = (attacker.offenseRating ?? 80) * atkMult * atkPosMult * zoneMult * rand(0.7, 1.3)
   const defPower   = (defender.defenseRating ?? 60) * defMult * defPosMult * rand(0.7, 1.3)
   const matchupAdj = atkPower / (atkPower + defPower * 0.55)
 
@@ -223,12 +261,15 @@ function calcActiveDrain(drainRate, result, role) {
 function _runAttackInline(
   atkTeam, atkMap, defTeam, defMap,
   teamIndex, quarter, possIdx,
-  atkBoxes, defBoxes, drainMap
+  atkBoxes, defBoxes, drainMap,
+  atkStreakMap
 ) {
   const atk = weightedPick(atkTeam,  x => (x.offenseRating + 100) * getEnergyMultiplier(atkMap[x.id]))
   const def = posMatchPick(defTeam, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(defMap[x.id]))
 
-  const result = simulatePossession(atk, def, atkMap[atk.id], defMap[def.id])
+  const streakBefore = atkStreakMap[atk.id] ?? 0
+  const zoneMult     = getZoneMult(streakBefore)
+  const result = simulatePossession(atk, def, atkMap[atk.id], defMap[def.id], zoneMult)
 
   atkMap[atk.id] = Math.max(0, atkMap[atk.id] - calcActiveDrain(drainMap[atk.id], result, 'attacker'))
   defMap[def.id] = Math.max(0, defMap[def.id] - calcActiveDrain(drainMap[def.id], result, 'defender'))
@@ -247,8 +288,13 @@ function _runAttackInline(
     }
   }
 
+  updateStreak(atkStreakMap, atk.id, result)
+  const streakAfter  = atkStreakMap[atk.id]
+  const zoneEntered  = getZoneEntered(streakBefore, streakAfter)
+
   const play = { quarter, possIdx, teamIndex, attacker: atk, defender: def, assister, ...result,
-    atkEnergyAfter: Math.round(atkMap[atk.id]) }
+    atkEnergyAfter: Math.round(atkMap[atk.id]),
+    atkZone: getZoneLabel(streakAfter), atkStreak: streakAfter, zoneEntered }
   play.description = buildDescription(play)
   return { play, pts: result.points }
 }
@@ -270,6 +316,9 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
   const npcActive = [...npcStartersInput]
   const npcBench  = [...npcBenchInput]
 
+  const myStreakMap  = Object.fromEntries(myStarters.map(p => [p.id, 0]))
+  const npcStreakMap = Object.fromEntries([...npcStartersInput, ...npcBenchInput].map(p => [p.id, 0]))
+
   const boxScore = {
     myTeam:  Object.fromEntries(myStarters.map(p => [p.id, emptyBox()])),
     npcTeam: Object.fromEntries([...npcStartersInput, ...npcBenchInput].map(p => [p.id, emptyBox()])),
@@ -288,7 +337,7 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
       {
         const { play, pts } = _runAttackInline(
           myActive, myEnergyMap, npcActive, npcEnergyMap,
-          0, q + 1, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap
+          0, q + 1, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap, myStreakMap
         )
         myTotal += pts; myQ += pts
         play.score = [myTotal, npcTotal]
@@ -298,7 +347,7 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
       {
         const { play, pts } = _runAttackInline(
           npcActive, npcEnergyMap, myActive, myEnergyMap,
-          1, q + 1, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap
+          1, q + 1, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap, npcStreakMap
         )
         npcTotal += pts; npcQ += pts
         play.score = [myTotal, npcTotal]
@@ -346,7 +395,7 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
       {
         const { play, pts } = _runAttackInline(
           myActive, myEnergyMap, npcActive, npcEnergyMap,
-          0, otQuarter, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap
+          0, otQuarter, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap, myStreakMap
         )
         myTotal += pts; myOT += pts
         play.score = [myTotal, npcTotal]
@@ -356,7 +405,7 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
       {
         const { play, pts } = _runAttackInline(
           npcActive, npcEnergyMap, myActive, myEnergyMap,
-          1, otQuarter, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap
+          1, otQuarter, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap, npcStreakMap
         )
         npcTotal += pts; npcOT += pts
         play.score = [myTotal, npcTotal]
@@ -423,14 +472,34 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
   const npcActive  = [...npcLineup]
   const npcBench   = [...npcBenchInput]
 
+  // Derive per-player streak state from the prefix plays, in chronological order.
+  // Sub events reset the subbed-out player's streak so a returning sub starts fresh.
+  const myStreakMap  = {}
+  const npcStreakMap = {}
+  for (const play of prefix) {
+    const map = play.teamIndex === 0 ? myStreakMap : npcStreakMap
+    if (play.isSub) {
+      if (play.subOut) map[play.subOut.id] = 0
+      continue
+    }
+    if (play.atkStreak == null) continue
+    map[play.attacker.id] = play.atkStreak
+  }
+  // Fill any missing players (not in prefix yet) with 0
+  for (const p of myLineup) if (myStreakMap[p.id] == null) myStreakMap[p.id] = 0
+  for (const p of [...npcLineup, ...npcBenchInput]) if (npcStreakMap[p.id] == null) npcStreakMap[p.id] = 0
+
   // qtPossIdx continues within current period, then resets for new periods
   let qtPossIdx = playsInCurPeriod  // start where prefix left off
 
   function runAttack(atkTeam, atkMap, defTeam, defMap, teamIndex, q) {
+    const atkStreakMap = teamIndex === 0 ? myStreakMap : npcStreakMap
     const atk = weightedPick(atkTeam, x => (x.offenseRating + 100) * getEnergyMultiplier(atkMap[x.id] ?? 100))
     const def = posMatchPick(defTeam, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(defMap[x.id] ?? 100))
 
-    const result = simulatePossession(atk, def, atkMap[atk.id] ?? 100, defMap[def.id] ?? 100)
+    const streakBefore = atkStreakMap[atk.id] ?? 0
+    const zoneMult     = getZoneMult(streakBefore)
+    const result = simulatePossession(atk, def, atkMap[atk.id] ?? 100, defMap[def.id] ?? 100, zoneMult)
     const pts = result.points
     if (teamIndex === 0) myTotal += pts; else npcTotal += pts
 
@@ -453,10 +522,15 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
       }
     }
 
+    updateStreak(atkStreakMap, atk.id, result)
+    const streakAfter = atkStreakMap[atk.id]
+    const zoneEntered = getZoneEntered(streakBefore, streakAfter)
+
     const play = {
       quarter: q + 1, possIdx: qtPossIdx++, teamIndex,
       attacker: atk, defender: def, assister, ...result,
       atkEnergyAfter: Math.round(atkMap[atk.id]),
+      atkZone: getZoneLabel(streakAfter), atkStreak: streakAfter, zoneEntered,
       score: [myTotal, npcTotal],
       energySnapshot: { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } },
     }

@@ -6,8 +6,13 @@
 
 ## Bugs 🐛
 _(all fixed — see Done ✅)_
-
 ---
+
+## UI Improvments 🐛
+1. Barely can see the quarter and time on the simulating texts on dark mode
+2. The team profile pic size isn't equal, Feel like the npc team profile pic is smaller_
+---
+
 
 ## Tech Debt 🔧
 > Refactoring and code quality — no new behavior, just cleaner internals.
@@ -21,19 +26,9 @@ _(all fixed — see Done ✅)_
 
 1. Add drag-and-drop swap in My Team — currently requires: click slot → pick from bench → then re-add displaced player manually.
 
-2. Add the time left on the current quarter on simulate page, also add the time for each generate text
-
-3. Zone-mode. If some player makes consecutive score or defense play, it means player in the zone, the player ability should buff. If some player made shots consecutively miss or faults, in freezing mode, the player should takes some debuff. If player in some mode, UI should reflect it
-
 4. Tell me what's the current strategy who is make shots attemp. Ideally it should comes from the  Usage Percentage.
 
-5. Currently there is no passing or assists on simulations, add that into the generated text, as player A assists player B. The assists happens should be reasonable. For example (Lebron could makes 10 assists per game but Gobert won't)
-
-6. Use my updated simulating_text.md to make the simulation text more interesting.
-
-9. Add a team profile pic, and also for NPC team, shows on two ends when simulate games
-
-11. Add a overtime with 5 minutes if game is tied at the end
+5. Right now who is making the assists is random, I would suggest an algorithm to use the players on court average assists as reference, and giving some weight on posistion PG.
 
 12. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
 
