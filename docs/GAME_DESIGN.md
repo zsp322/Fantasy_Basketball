@@ -255,3 +255,227 @@ Accumulated per player during simulation:
 | Shaun Livingston | SG | 56 | 58 | Backup guard |
 | Andre Iguodala | SF | 71 | 130 | 2015 Finals MVP, defensive stopper |
 | Festus Ezeli | C | 23 | 68 | Backup big |
+
+---
+
+## 14. Player Economy — Salary & Tier Movement
+
+### Philosophy
+
+Salary and tier are two separate things that move at different speeds:
+
+- **Salary** drifts daily within the tier's band. Small, frequent, visible.
+- **Tier** changes slowly and only after sustained over/under-performance. Rare, meaningful.
+
+A player like LeBron having one bad game does nothing. Ten consecutive bad games reflected in his season averages nudge him down within his tier first. If it continues long enough, he drops from S to S-.
+
+---
+
+### Salary Bands
+
+Each tier in `tiers.js` already defines a salary band via `floor` and `ceiling` ($M):
+
+| Tier | Floor  | Ceiling | Default (midpoint) |
+|------|--------|---------|--------------------|
+| S+   | $58M   | $83M    | $70M               |
+| S    | $47M   | $73M    | $60M               |
+| S-   | $38M   | $63M    | $50M               |
+| A+   | $32M   | $52M    | $42M               |
+| A    | $25M   | $43M    | $33M               |
+| A-   | $20M   | $35M    | $27M               |
+| B+   | $15M   | $28M    | $22M               |
+| B    | $12M   | $22M    | $17M               |
+| B-   | $8M    | $17M    | $12M               |
+| C+   | $5M    | $12M    | $8M                |
+| C    | $3M    | $8M     | $6M                |
+| C-   | $2M    | $6M     | $3M                |
+| D+   | $1.3M  | $4M     | $2.5M              |
+| D    | $0.8M  | $3M     | $1.7M              |
+| D-   | $0.5M  | $2.5M   | $1.2M              |
+| F    | $0.5M  | $1.7M   | $0.8M              |
+
+A player's salary **never crosses** their tier's floor or ceiling. Boundary crossing only happens via a tier change event.
+
+---
+
+### Tier Score Boundaries
+
+Tiers are slot-based (top 4 players → S+, next 8 → S, etc.). After each `assignTiers()` run, the system records the `fantasyScore` range seen in each tier:
+
+```
+tierBoundaries = {
+  'S+': { minScore: 310, maxScore: 430 },
+  'S':  { minScore: 245, maxScore: 309 },
+  ...
+}
+```
+
+Stored in `fbball_tier_boundaries` (localStorage). Refreshed whenever the player cache refreshes (same cadence as ESPN data).
+
+These boundaries are the reference point for deciding if a player is over/under-performing their tier.
+
+---
+
+### Per-Player Salary State
+
+Stored in `fbball_salary_state_v1` (localStorage):
+
+```js
+{
+  [playerId]: {
+    salary: float,              // current salary ($M)
+    tierName: string,           // current tier ('S', 'A+', etc.)
+    overperformDays: int,       // consecutive days fantasyScore > tier boundary max
+    underperformDays: int,      // consecutive days fantasyScore < tier boundary min
+    lastUpdatedDate: string,    // 'YYYY-MM-DD' — prevents double-updating in one day
+  }
+}
+```
+
+---
+
+### Daily Salary Drift (within tier)
+
+Runs once per calendar day. Two components combined:
+
+**1. Seeded random drift** — gives each player a unique daily movement, same result for the same player+date (consistent across sessions):
+```
+drift = seededRandom(playerId + dateStr) × 0.10 − 0.05     // ±5%
+```
+
+**2. Performance pull** — gently pulls the salary toward where the player naturally sits in the tier based on their `fantasyScore` relative to the tier's score range:
+```
+normalizedPosition = clamp(
+  (fantasyScore − tierBoundaries[tier].minScore)
+  / (tierBoundaries[tier].maxScore − tierBoundaries[tier].minScore),
+  0, 1
+)
+pull = (normalizedPosition − 0.5) × 0.03    // ±1.5% pull toward natural position
+```
+
+**Combined:**
+```
+dailyChangePct = drift + pull
+newSalary = clamp(salary × (1 + dailyChangePct), tier.floor, tier.ceiling)
+```
+
+Net effect: a player at the top of their tier drifts toward the ceiling; one at the bottom drifts toward the floor. But there's enough randomness that it still feels volatile and interesting day-to-day.
+
+---
+
+### Tier Promotion / Demotion
+
+Evaluated each time daily drift runs. Uses the tier score boundaries as the signal:
+
+```
+if fantasyScore > tierBoundaries[tier].maxScore:
+    overperformDays += 1
+    underperformDays = 0
+    if overperformDays >= 7:
+        → promote one tier step (e.g. S- → S)
+        → salary resets to: newTier.floor + 0.2 × (newTier.ceiling − newTier.floor)
+           (enters near the bottom of the new tier — must earn the rest)
+        → reset both counters
+
+elif fantasyScore < tierBoundaries[tier].minScore:
+    underperformDays += 1
+    overperformDays = 0
+    if underperformDays >= 7:
+        → demote one tier step (e.g. S → S-)
+        → salary resets to: newTier.ceiling − 0.2 × (newTier.ceiling − newTier.floor)
+           (enters near the top of the new tier — still holding some value)
+        → reset both counters
+
+else:
+    reset both counters to 0   // any "in-tier" day resets the streak
+```
+
+**Key rules:**
+- Tier changes are one step at a time only — S cannot jump to A+, it goes S → S- → A+
+- A player on your team can also be promoted/demoted — your buy price is locked at purchase, but market value changes
+- Tier change is a notable event — shown as a badge/alert in the stock market view
+
+---
+
+### Stock Market View
+
+A dedicated panel (likely a tab on the Market page or its own route) showing today's salary movement across all ESPN players:
+
+**Top 5 Gainers** — largest absolute $ increase since yesterday
+**Top 5 Losers** — largest absolute $ decrease since yesterday
+
+Each row shows:
+```
+[Headshot] LeBron James   S   $54.2M  ▲ +$2.8M  (+5.4%)
+```
+
+Tier-change events shown with a special badge:
+```
+[Headshot] Damian Lillard  A+ → A   $28.1M  ▼ −$8.9M  (tier drop)
+```
+
+---
+
+### Update Timing
+
+**When does it run?**
+
+On every app load, after `usePlayers` finishes fetching ESPN data:
+
+```
+1. usePlayers() resolves → players[] is ready (fantasyScore attached)
+2. assignTiers(players) runs → tiers assigned, tierBoundaries snapshot saved
+3. useSalaryChanges(players) activates:
+     today = 'YYYY-MM-DD'
+     if today !== salaryState[anyPlayer].lastUpdatedDate:
+         run daily drift + tier check for all players
+         write new salaryState to localStorage
+     else:
+         skip — already ran today, return cached state
+```
+
+**Key guard:** `lastUpdatedDate` is a date string (`'2026-02-21'`), not a timestamp. The ESPN cache may refresh every 4 hours, but the salary update only fires once per calendar day regardless of how many times the app loads or the ESPN cache refreshes.
+
+**Dependency order matters:** `useSalaryChanges` must receive a non-empty `players` array. It should short-circuit and return empty state while players are still loading. Never run on stale/empty data.
+
+**What about stale ESPN data?** If the user opens the app at midnight before ESPN has updated, the salary check runs on yesterday's stats. That's acceptable — we're measuring 7-day trends, not reacting to individual games. One day of lag is noise.
+
+---
+
+### Migration Note
+
+**Frontend-only (current):** All logic lives in `useSalaryChanges(players)`. This hook:
+- Reads/writes `fbball_salary_state_v1` and `fbball_tier_boundaries` from localStorage
+- Generates the daily update internally (seeded random + performance pull)
+- Returns a stable data shape
+
+**After backend:** Replace the hook internals with a single fetch. Everything else stays identical.
+
+```js
+// Today (frontend):
+function useSalaryChanges(players) {
+  // reads localStorage, runs generator, writes back
+  return { winners, losers, salaryMap, updatedAt }
+}
+
+// After backend:
+function useSalaryChanges(players) {
+  const [data, setData] = useState(null)
+  useEffect(() => {
+    fetch('/api/salary-changes')
+      .then(r => r.json())
+      .then(setData)
+  }, [])
+  return data ?? { winners: [], losers: [], salaryMap: {}, updatedAt: null }
+}
+```
+
+The hook signature, return shape, and all UI components are unchanged. The backend takes ownership of:
+- Running the daily update via cron job (no longer depends on a user loading the app)
+- Storing salary state in a database (survives across users and devices)
+- Computing `tierBoundaries` server-side after refreshing ESPN data
+
+**localStorage keys used (frontend only — safe to drop after migration):**
+- `fbball_salary_state_v1` — per-player salary + drift counters
+- `fbball_tier_boundaries` — snapshot of fantasyScore ranges per tier
+

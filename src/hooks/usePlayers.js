@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { fetchActivePlayers } from '../api/players'
 import { calcFantasyScore, calcOffenseRating, calcDefenseRating, resolvePosition, resolveEligiblePositions } from '../utils/scoring'
-import { assignTiers } from '../utils/tiers'
+import { assignTiers, computeTierBoundaries } from '../utils/tiers'
 
 const CACHE_KEY = 'fbball_players_cache_v5' // bumped for salary rescale (S+=70M)
 const CACHE_TTL = 1000 * 60 * 60 // 1 hour
@@ -39,6 +39,10 @@ export function usePlayers() {
         }))
 
         const tiered = assignTiers(withScores)
+
+        // Save tier score boundaries for salary drift calculations (useSalaryChanges)
+        const boundaries = computeTierBoundaries(tiered)
+        localStorage.setItem('fbball_tier_boundaries', JSON.stringify(boundaries))
 
         sessionStorage.setItem(CACHE_KEY, JSON.stringify({
           data: tiered,

@@ -6,11 +6,12 @@ import { getPlayerName } from '../data/playerNames'
 import { getPosMismatchMult } from '../utils/gameEngine'
 import { T, t } from '../data/i18n'
 
-export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign, onRemove, onSell, onClose }) {
+export default function SwapDrawer({ pos, currentPlayer, currentPlayerLiveSalary, benchPlayers, onAssign, onRemove, onSell, onClose }) {
   const { lang } = useSettings()
   const [showSellConfirm, setShowSellConfirm] = useState(false)
 
-  const sellAmount = parseFloat(((currentPlayer?.tier?.salary ?? 0) * 0.8).toFixed(1))
+  const baseSalary = currentPlayerLiveSalary ?? currentPlayer?.signedSalary ?? currentPlayer?.tier?.salary ?? 0
+  const sellAmount = parseFloat((baseSalary * 0.8).toFixed(1))
 
   // Sort by effective ATK+DEF at this slot (penalty applied), descending
   const sortedBench = [...benchPlayers].sort((a, b) => {
@@ -164,7 +165,7 @@ export default function SwapDrawer({ pos, currentPlayer, benchPlayers, onAssign,
               </div>
               <div className="flex gap-3">
                 <button
-                  onClick={() => { onSell(currentPlayer.id); onClose() }}
+                  onClick={() => { onSell(currentPlayer.id, currentPlayerLiveSalary); onClose() }}
                   className="px-5 py-2 bg-green-700 hover:bg-green-600 text-white font-bold rounded-xl text-sm transition-colors"
                 >
                   {t(T.swapDrawer.sellYes, lang)}

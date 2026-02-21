@@ -93,7 +93,7 @@ function RadarChart({ avg }) {
 }
 
 // ── Bottom stats panel ────────────────────────────────────────
-function StatsPanel({ player, onClose, lang = 'zh' }) {
+function StatsPanel({ player, livePrice, onClose, lang = 'zh' }) {
   if (!player) return null
   const avg = player.avg
   const stat = v => (v != null ? Number(v).toFixed(1) : '—')
@@ -138,7 +138,7 @@ function StatsPanel({ player, onClose, lang = 'zh' }) {
               <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${player.tier?.color ?? 'bg-gray-500 text-white'}`}>
                 {tierName}
               </span>
-              <span className="text-green-400 text-xs font-bold">${player.tier?.salary}M</span>
+              <span className="text-green-400 text-xs font-bold">${(livePrice ?? player.tier?.salary)?.toFixed(1)}M</span>
             </div>
           </div>
         </div>
@@ -195,7 +195,7 @@ function StatsPanel({ player, onClose, lang = 'zh' }) {
 }
 
 // ── Player card ───────────────────────────────────────────────
-function PlayerMarketCard({ player, onBuy, canAfford, alreadyOwned, selected, onSelect, lang = 'zh' }) {
+function PlayerMarketCard({ player, livePrice, onBuy, canAfford, alreadyOwned, selected, onSelect, lang = 'zh' }) {
   const [feedback, setFeedback] = useState(null)
   const [hovered, setHovered] = useState(false)
   const tierName = player.tier?.name
@@ -204,7 +204,7 @@ function PlayerMarketCard({ player, onBuy, canAfford, alreadyOwned, selected, on
 
   function handleBuy(e) {
     e.stopPropagation()
-    const result = onBuy(player)
+    const result = onBuy(player, livePrice)
     if (result.ok) {
       setFeedback({ type: 'ok', msg: t(T.market.signingOk, lang) })
     } else {
@@ -279,7 +279,7 @@ function PlayerMarketCard({ player, onBuy, canAfford, alreadyOwned, selected, on
         <div className="text-gray-400 text-xs mt-0.5">
           {player.position || '—'} · {player.avg?.teamAbbr ?? '—'}
         </div>
-        <div className="text-green-400 font-bold text-sm mt-0.5">${player.tier?.salary}M</div>
+        <div className="text-green-400 font-bold text-sm mt-0.5">${livePrice?.toFixed(1)}M</div>
       </div>
 
       {/* Sign button */}
@@ -308,13 +308,65 @@ function PlayerMarketCard({ player, onBuy, canAfford, alreadyOwned, selected, on
   )
 }
 
+// ── Market Movers row ─────────────────────────────────────────
+function MoverRow({ change, lang }) {
+  const { player, newSalary, delta, pct, tierChanged } = change
+  const isGain = delta >= 0
+  return (
+    <div className="flex items-center gap-3 px-4 py-2 rounded-lg hover:bg-white/5 transition-colors">
+      {/* Headshot */}
+      {player.headshot ? (
+        <img src={player.headshot} alt={player.last_name}
+          className="rounded object-cover object-top shrink-0"
+          style={{ width: 34, height: 40 }} />
+      ) : (
+        <div className="rounded bg-gray-800 flex items-center justify-center text-white font-bold text-xs shrink-0"
+          style={{ width: 34, height: 40 }}>
+          {player.first_name?.[0]}{player.last_name?.[0]}
+        </div>
+      )}
+
+      {/* Name + team */}
+      <div className="flex-1 min-w-0">
+        <div className="text-white font-semibold text-sm truncate">{getPlayerName(player, lang)}</div>
+        <div className="text-gray-500 text-xs">{player.avg?.teamAbbr ?? '—'} · {player.position || '—'}</div>
+      </div>
+
+      {/* Tier badge */}
+      <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${player.tier?.color ?? 'bg-gray-500 text-white'}`}>
+        {player.tier?.name}
+      </span>
+
+      {/* Salary + delta */}
+      <div className="text-right shrink-0 w-24">
+        <div className="text-white font-bold text-sm">${newSalary.toFixed(1)}M</div>
+        <div className={`text-xs font-semibold ${isGain ? 'text-green-400' : 'text-red-400'}`}>
+          {isGain ? '▲' : '▼'} {Math.abs(pct).toFixed(1)}%
+        </div>
+      </div>
+
+      {/* Tier-change badge */}
+      {tierChanged && (
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+          tierChanged.direction === 'up'
+            ? 'border-green-500 text-green-400'
+            : 'border-red-500 text-red-400'
+        }`}>
+          {tierChanged.direction === 'up' ? t(T.market.tierUp, lang) : t(T.market.tierDown, lang)}
+        </span>
+      )}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────
-export default function Market({ players, team }) {
+export default function Market({ players, team, winners, losers, salaryMap, updatedAt }) {
   const { lang } = useSettings()
   const teamIds = team.team.map(p => p.id)
   const { marketPlayers, refreshMarket, removeFromMarket, nextRefreshMs } = useMarket(players, teamIds)
   const [countdown, setCountdown] = useState(nextRefreshMs)
   const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [tab, setTab] = useState('market')
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -330,8 +382,8 @@ export default function Market({ players, team }) {
     return () => clearInterval(interval)
   }, [])
 
-  function handleBuy(player) {
-    const result = team.buyPlayer(player)
+  function handleBuy(player, livePrice) {
+    const result = team.buyPlayer(player, livePrice)
     if (result.ok) removeFromMarket(player.id)
     return result
   }
@@ -372,6 +424,26 @@ export default function Market({ players, team }) {
             <h1 className="text-lg font-bold text-white leading-tight">{t(T.market.title, lang)}</h1>
           </div>
         </div>
+
+        {/* Tab pills (centered) */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex gap-1 bg-gray-900/70 border border-gray-700/50 rounded-lg p-1">
+          {[
+            { key: 'market', label: t(T.market.tabAgency, lang) },
+            { key: 'movers', label: t(T.market.tabMovers, lang) },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => { setTab(key); setSelectedPlayer(null) }}
+              className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 ${
+                tab === key
+                  ? 'bg-orange-500 text-white shadow'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="flex items-center gap-8">
           <div className="text-center">
             <div className="text-green-400 font-bold text-xl leading-tight">${team.cash}M</div>
@@ -399,37 +471,86 @@ export default function Market({ players, team }) {
       </div>
 
       {/* ── Stage: player cards ── */}
-      <div className="relative z-10 flex-1 flex items-center justify-center"
-        style={{ paddingBottom: selectedPlayer ? 160 : 0, transition: 'padding-bottom 0.3s ease' }}>
-        {marketPlayers.length === 0 ? (
-          <div className="text-center">
-            <p className="text-gray-500 mb-5 text-lg">{t(T.market.empty, lang)}</p>
-            <button onClick={() => refreshMarket(teamIds)}
-              className="bg-orange-500 hover:bg-orange-400 text-white px-8 py-2.5 rounded-lg font-semibold text-base transition-colors">
-              {t(T.market.generate, lang)}
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-end justify-center gap-5 px-8">
-            {marketPlayers.map(player => (
-              <PlayerMarketCard
-                key={player.id}
-                player={player}
-                onBuy={handleBuy}
-                canAfford={team.cash >= (player.tier?.salary ?? 0) && team.capRemaining >= (player.tier?.salary ?? 0)}
-                alreadyOwned={teamIds.includes(player.id)}
-                selected={selectedPlayer?.id === player.id}
-                onSelect={handleSelect}
-                lang={lang}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {tab === 'market' && (
+        <div className="relative z-10 flex-1 flex items-center justify-center"
+          style={{ paddingBottom: selectedPlayer ? 160 : 0, transition: 'padding-bottom 0.3s ease' }}>
+          {marketPlayers.length === 0 ? (
+            <div className="text-center">
+              <p className="text-gray-500 mb-5 text-lg">{t(T.market.empty, lang)}</p>
+              <button onClick={() => refreshMarket(teamIds)}
+                className="bg-orange-500 hover:bg-orange-400 text-white px-8 py-2.5 rounded-lg font-semibold text-base transition-colors">
+                {t(T.market.generate, lang)}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-end justify-center gap-5 px-8">
+              {marketPlayers.map(player => {
+                const livePrice = parseFloat((salaryMap[String(player.id)] ?? player.tier?.salary ?? 0).toFixed(1))
+                return (
+                  <PlayerMarketCard
+                    key={player.id}
+                    player={player}
+                    livePrice={livePrice}
+                    onBuy={handleBuy}
+                    canAfford={team.cash >= livePrice && team.capRemaining >= livePrice}
+                    alreadyOwned={teamIds.includes(player.id)}
+                    selected={selectedPlayer?.id === player.id}
+                    onSelect={handleSelect}
+                    lang={lang}
+                  />
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Stage: Market Movers ── */}
+      {tab === 'movers' && (
+        <div className="relative z-10 flex-1 flex items-center justify-center px-8">
+          {!updatedAt ? (
+            <p className="text-gray-500 text-base">{t(T.market.moversLoading, lang)}</p>
+          ) : winners.length === 0 && losers.length === 0 ? (
+            <p className="text-gray-500 text-base text-center max-w-sm">{t(T.market.moversEmpty, lang)}</p>
+          ) : (
+            <div className="flex gap-4 w-full max-w-3xl">
+              {/* Top Gainers */}
+              <div className="flex-1 bg-gray-900/50 border border-gray-800/60 rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-gray-800/60 flex items-center gap-2">
+                  <span className="text-green-400 font-bold text-sm uppercase tracking-wider">
+                    {t(T.market.gainers, lang)}
+                  </span>
+                  <span className="text-green-500 text-xs">▲</span>
+                </div>
+                {winners.map(c => <MoverRow key={c.player.id} change={c} lang={lang} />)}
+              </div>
+
+              {/* Divider */}
+              <div style={{ width: 1, background: 'rgba(255,255,255,0.07)', flexShrink: 0 }} />
+
+              {/* Top Losers */}
+              <div className="flex-1 bg-gray-900/50 border border-gray-800/60 rounded-xl overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-gray-800/60 flex items-center gap-2">
+                  <span className="text-red-400 font-bold text-sm uppercase tracking-wider">
+                    {t(T.market.losers, lang)}
+                  </span>
+                  <span className="text-red-500 text-xs">▼</span>
+                </div>
+                {losers.map(c => <MoverRow key={c.player.id} change={c} lang={lang} />)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Bottom stats panel ── */}
-      {selectedPlayer && (
-        <StatsPanel player={selectedPlayer} onClose={() => setSelectedPlayer(null)} lang={lang} />
+      {tab === 'market' && selectedPlayer && (
+        <StatsPanel
+          player={selectedPlayer}
+          livePrice={parseFloat((salaryMap[String(selectedPlayer.id)] ?? selectedPlayer.tier?.salary ?? 0).toFixed(1))}
+          onClose={() => setSelectedPlayer(null)}
+          lang={lang}
+        />
       )}
     </div>
   )

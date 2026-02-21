@@ -30,7 +30,7 @@ export function useTeam() {
     saveState(next)
   }, [])
 
-  const totalSalary = state.team.reduce((sum, p) => sum + (p.tier?.salary ?? 0), 0)
+  const totalSalary = state.team.reduce((sum, p) => sum + (p.signedSalary ?? p.tier?.salary ?? 0), 0)
   const capRemaining = SALARY_CAP - totalSalary
   const rosterFull = state.team.length >= 15
 
@@ -42,26 +42,28 @@ export function useTeam() {
     })
   }
 
-  function buyPlayer(player) {
-    const cost = player.tier?.salary ?? 0
+  function buyPlayer(player, liveSalary) {
+    const cost = parseFloat((liveSalary ?? player.tier?.salary ?? 0).toFixed(1))
     if (state.cash < cost) return { ok: false, reason: 'Not enough cash' }
     if (capRemaining < cost) return { ok: false, reason: 'Salary cap exceeded' }
     if (rosterFull) return { ok: false, reason: 'Roster is full (max 15)' }
     if (state.team.find(p => p.id === player.id)) return { ok: false, reason: 'Already on your team' }
 
+    const playerWithLockedSalary = { ...player, signedSalary: cost }
     persist({
       ...state,
-      team: [...state.team, player],
+      team: [...state.team, playerWithLockedSalary],
       cash: parseFloat((state.cash - cost).toFixed(1)),
     })
     return { ok: true }
   }
 
-  function dropPlayer(playerId) {
+  function dropPlayer(playerId, liveSalary) {
     const player = state.team.find(p => p.id === playerId)
     if (!player) return
-    // 20% sell penalty — player receives 80% of salary back
-    const refund = parseFloat(((player.tier?.salary ?? 0) * 0.8).toFixed(1))
+    // 20% sell penalty — refund based on live market salary if available, otherwise locked salary
+    const baseSalary = liveSalary ?? player.signedSalary ?? player.tier?.salary ?? 0
+    const refund = parseFloat((baseSalary * 0.8).toFixed(1))
     persist({
       ...state,
       team: state.team.filter(p => p.id !== playerId),

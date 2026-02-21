@@ -34,6 +34,14 @@ export const T = {
     signingOk:      { en: 'Signed!',             zh: '签约成功！' },
     empty:          { en: 'Market is empty',     zh: '市场为空' },
     generate:       { en: 'Generate Market',     zh: '生成市场' },
+    tabAgency:      { en: 'Free Agency',         zh: '自由市场' },
+    tabMovers:      { en: 'Market Movers',       zh: '行情榜' },
+    gainers:        { en: 'Top Gainers',         zh: '涨幅榜' },
+    losers:         { en: 'Top Losers',          zh: '跌幅榜' },
+    tierUp:         { en: 'Promoted',            zh: '升级' },
+    tierDown:       { en: 'Demoted',             zh: '降级' },
+    moversLoading:  { en: 'Loading salary data…',zh: '薪资数据加载中…' },
+    moversEmpty:    { en: 'No salary data yet. Load the app daily to build history.', zh: '暂无行情数据，每天打开应用即可积累历史记录。' },
   },
 
   // ── Foundational Pick ──────────────────────────────────────────────────────

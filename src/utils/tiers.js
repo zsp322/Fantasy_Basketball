@@ -45,3 +45,23 @@ export function assignTiers(playersWithScores) {
 export function getTierByName(name) {
   return TIERS.find(t => t.name === name) ?? TIERS[TIERS.length - 1]
 }
+
+/**
+ * Scan a tiered player array and record the min/max fantasyScore seen in each tier.
+ * Result is saved to localStorage as 'fbball_tier_boundaries' by usePlayers.
+ * Used by useSalaryChanges to detect over/under-performance.
+ */
+export function computeTierBoundaries(tieredPlayers) {
+  const boundaries = {}
+  for (const p of tieredPlayers) {
+    if (!p.tier?.name || p.fantasyScore == null) continue
+    const name = p.tier.name
+    if (!boundaries[name]) {
+      boundaries[name] = { minScore: p.fantasyScore, maxScore: p.fantasyScore }
+    } else {
+      if (p.fantasyScore < boundaries[name].minScore) boundaries[name].minScore = p.fantasyScore
+      if (p.fantasyScore > boundaries[name].maxScore) boundaries[name].maxScore = p.fantasyScore
+    }
+  }
+  return boundaries
+}

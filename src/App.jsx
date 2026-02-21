@@ -38,12 +38,14 @@ import League from './pages/League'
 import Simulate from './pages/Simulate'
 import { usePlayers } from './hooks/usePlayers'
 import { useTeam } from './hooks/useTeam'
+import { useSalaryChanges } from './hooks/useSalaryChanges'
 import { autoAssignPlayers, getSPlayers } from './utils/teamSetup'
 import { SettingsProvider } from './contexts/SettingsContext'
 
 function AppInner() {
   const { players, loading } = usePlayers()
   const team = useTeam()
+  const { winners, losers, salaryMap, updatedAt } = useSalaryChanges(players)
   const [pendingInit, setPendingInit] = useState(null) // { foundational, autoPlayers }
 
   // Stable 5-player S/S- pick list — re-generated only when players load
@@ -90,8 +92,8 @@ function AppInner() {
         <div className="flex-1 min-h-0 overflow-hidden">
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/market" element={<Market players={players} team={team} />} />
-            <Route path="/team" element={<MyTeam team={team} />} />
+            <Route path="/market" element={<Market players={players} team={team} winners={winners} losers={losers} salaryMap={salaryMap} updatedAt={updatedAt} />} />
+            <Route path="/team" element={<MyTeam team={team} salaryMap={salaryMap} />} />
             <Route path="/league" element={<League />} />
             <Route path="/simulate" element={<Simulate />} />
           </Routes>

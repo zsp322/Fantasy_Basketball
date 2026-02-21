@@ -63,7 +63,7 @@ function BenchChip({ player, lang = 'zh' }) {
   )
 }
 
-export default function MyTeam({ team }) {
+export default function MyTeam({ team, salaryMap = {} }) {
   const { lang } = useSettings()
   const { team: roster, totalSalary, capRemaining, cash, resetTeam, dropPlayer } = team
   const { starters, assign, remove } = useStarters(roster)
@@ -190,10 +190,11 @@ export default function MyTeam({ team }) {
         <SwapDrawer
           pos={drawer.pos}
           currentPlayer={drawer.player}
+          currentPlayerLiveSalary={drawer.player ? (salaryMap[String(drawer.player.id)] ?? null) : null}
           benchPlayers={bench.filter(p => p.id !== drawer.player?.id)}
           onAssign={assign}
           onRemove={remove}
-          onSell={(playerId) => { dropPlayer(playerId); setDrawer(null) }}
+          onSell={(playerId, liveSalary) => { dropPlayer(playerId, liveSalary); setDrawer(null) }}
           onClose={() => setDrawer(null)}
         />
       )}
