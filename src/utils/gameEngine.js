@@ -4,17 +4,14 @@ import { getPlayerShortName } from '../data/playerNames.js'
 // ─── Constants ───────────────────────────────────────────────────────────────
 const QUARTERS = 4
 const POSSESSIONS_PER_QUARTER = 20  // per team → 80/team total
+const OT_POSSESSIONS = 10           // per team, ~5 minutes per OT period
 
 // Energy sub threshold: if a player drops below this at quarter end, sub them out
 const SUB_THRESHOLD = 38
 
 // ─── Position mismatch ────────────────────────────────────────────────────────
-// Penalty when a player starts in the wrong position slot.
-// e.g. a C playing PG → only 20% effective; SG playing SF → 85%.
 const POS_IDX = { PG: 0, SG: 1, SF: 2, PF: 3, C: 4 }
 
-// eligiblePositions: optional array of all slots the player can fill without penalty.
-// If slotPos is in that list → no penalty. Otherwise use minimum distance from any eligible slot.
 export function getPosMismatchMult(naturalPos, slotPos, eligiblePositions) {
   if (!naturalPos || !slotPos) return 1.0
   const eligible = eligiblePositions ?? [naturalPos]
@@ -28,10 +25,6 @@ function rand(min, max) {
   return min + Math.random() * (max - min)
 }
 
-function pick(arr) {
-  return arr[Math.floor(Math.random() * arr.length)]
-}
-
 function weightedPick(players, weightFn) {
   const weights = players.map(p => Math.max(weightFn(p), 1))
   const total = weights.reduce((a, b) => a + b, 0)
@@ -43,7 +36,7 @@ function weightedPick(players, weightFn) {
   return players[players.length - 1]
 }
 
-// 80% chance: match by position (using eligible positions array), else weighted by defense
+// 80% chance: match by position, else weighted by defense
 function posMatchPick(players, pos, weightFn) {
   if (Math.random() < 0.80) {
     const same = players.find(p => (p.positions ?? [p.position]).includes(pos))
@@ -53,18 +46,16 @@ function posMatchPick(players, pos, weightFn) {
 }
 
 // ─── Energy ──────────────────────────────────────────────────────────────────
-// Higher avg minutes = slower drain (iron-man conditioning).
-// Scale: ~38-min star → 0.55/play,  ~20-min bench piece → 1.5/play
 function getDrainRate(player) {
   const min = player.avg?.min ?? 20
   return Math.max(0.55, 2.5 - (min / 40) * 2.0)
 }
 
 export function getEnergyMultiplier(energy) {
-  if (energy >= 70) return 1.00   // full strength
-  if (energy >= 50) return 0.85   // getting winded
-  if (energy >= 30) return 0.68   // noticeably tired
-  return 0.50                     // gassed — significant drop-off
+  if (energy >= 70) return 1.00
+  if (energy >= 50) return 0.85
+  if (energy >= 30) return 0.68
+  return 0.50
 }
 
 function getEnergyLabel(energy) {
@@ -102,7 +93,6 @@ function getFtChance(avg) {
 }
 
 // ─── Play descriptions ────────────────────────────────────────────────────────
-// Returns { en, zh } with player names already substituted in.
 function buildDescription(play) {
   const atkEn  = getPlayerShortName(play.attacker, 'en')
   const defEn  = play.defender ? getPlayerShortName(play.defender, 'en') : ''
@@ -111,7 +101,6 @@ function buildDescription(play) {
   const tired  = getEnergyLabel(play.atkEnergyAfter)
   const texts  = pickPlayText(play)
 
-  // Energy labels bilingual
   const tiredEn = tired ? ` ${tired}` : ''
   const tiredZh = tired === '(tired)'      ? '（体力下降）'
                 : tired === '(very tired)' ? '（十分疲惫）'
@@ -120,12 +109,19 @@ function buildDescription(play) {
   let en = texts.en.replace('{atk}', `${atkEn}${tiredEn}`).replace('{def}', defEn)
   let zh = texts.zh.replace('{atk}', `${atkZh}${tiredZh}`).replace('{def}', defZh)
 
-  // Append FT result
   if (play.shotType === 'FT') {
     const ftResultEn = `${play.ftMade}/2 FT`
     const ftResultZh = play.ftMade === 2 ? '两罚全中' : play.ftMade === 1 ? '一中一失' : '两球落空'
     en = `${en} — ${ftResultEn}`
     zh = `${zh} — ${ftResultZh}`
+  }
+
+  // Assist text on made field goals
+  if (play.assister && play.made && play.shotType !== 'FT') {
+    const astEn = getPlayerShortName(play.assister, 'en')
+    const astZh = getPlayerShortName(play.assister, 'zh')
+    en += Math.random() < 0.5 ? ` ${astEn} with the assist.` : ` Assisted by ${astEn}.`
+    zh += `，${astZh}助攻。`
   }
 
   return { en, zh }
@@ -155,7 +151,7 @@ function updateBox(box, id, result, role) {
   } else {
     if (result.specialEvent === 'steal') e.stl++
     if (result.specialEvent === 'block') e.blk++
-    if (result.shotType === 'FT') e.foul++   // defender committed a shooting foul
+    if (result.shotType === 'FT') e.foul++
     if (!result.made && !result.turnover && result.specialEvent !== 'steal') {
       if (Math.random() < 0.70) e.reb++
     }
@@ -167,15 +163,11 @@ function updateBox(box, id, result, role) {
 function simulatePossession(attacker, defender, atkEnergy, defEnergy) {
   const atkMult    = getEnergyMultiplier(atkEnergy)
   const defMult    = getEnergyMultiplier(defEnergy)
-
-  // Position mismatch: player in wrong slot loses effectiveness
   const atkPosMult = getPosMismatchMult(attacker.position, attacker.playingAs, attacker.positions)
   const defPosMult = getPosMismatchMult(defender.position, defender.playingAs, defender.positions)
-
   const avg = attacker.avg ?? {}
 
-  // Turnover — out-of-position players turn it over more often
-  const toBoost  = 1 + (1 - atkPosMult) * 2.0   // C at PG → 2.6× more TOs
+  const toBoost  = 1 + (1 - atkPosMult) * 2.0
   const toChance = (avg.to ?? 0) * 0.042 * toBoost
   if (Math.random() < toChance) {
     const steal = Math.random() < (defender.avg?.stl ?? 0) * defPosMult * 0.12
@@ -184,27 +176,20 @@ function simulatePossession(attacker, defender, atkEnergy, defEnergy) {
 
   const shotType = pickShotType(avg)
 
-  // Free throws — position matters less at the line
   if (shotType === 'FT') {
-    const ftPct = Math.min(Math.max(getFtChance(avg) * Math.sqrt(atkPosMult), 0.45), 0.95)
-    const ft1   = Math.random() < ftPct
-    const ft2   = Math.random() < ftPct
-    const ftMade = (ft1 ? 1 : 0) + (ft2 ? 1 : 0)
+    const ftPct  = Math.min(Math.max(getFtChance(avg) * Math.sqrt(atkPosMult), 0.45), 0.95)
+    const ftMade = (Math.random() < ftPct ? 1 : 0) + (Math.random() < ftPct ? 1 : 0)
     return { turnover: false, made: ftMade > 0, points: ftMade, shotType: 'FT', specialEvent: null, ftMade }
   }
 
-  // Field goal — attacker vs defender, both affected by position mismatch
   const baseChance = shotType === '3pt' ? get3ptChance(avg) : get2ptChance(avg)
   const atkPower   = (attacker.offenseRating ?? 80) * atkMult * atkPosMult * rand(0.7, 1.3)
   const defPower   = (defender.defenseRating ?? 60) * defMult * defPosMult * rand(0.7, 1.3)
   const matchupAdj = atkPower / (atkPower + defPower * 0.55)
 
-  let hitChance
-  if (shotType === '3pt') {
-    hitChance = Math.min(Math.max(baseChance * matchupAdj * 1.10, 0.15), 0.55)
-  } else {
-    hitChance = Math.min(Math.max(baseChance * matchupAdj * 1.45, 0.20), 0.80)
-  }
+  const hitChance = shotType === '3pt'
+    ? Math.min(Math.max(baseChance * matchupAdj * 1.10, 0.15), 0.55)
+    : Math.min(Math.max(baseChance * matchupAdj * 1.45, 0.20), 0.80)
 
   const made = Math.random() < hitChance
   let specialEvent = null
@@ -218,37 +203,65 @@ function simulatePossession(attacker, defender, atkEnergy, defEnergy) {
 }
 
 // ─── Per-action energy drain ─────────────────────────────────────────────────
-// Returns total energy cost for the active player based on what happened.
-// drainRate is the player-specific base rate (faster for low-minute players).
 function calcActiveDrain(drainRate, result, role) {
-  // Base drain per possession — faster than before
   let total = drainRate * (role === 'attacker' ? 2.5 : 2.0)
-
   if (role === 'attacker') {
-    if (result.made && result.shotType !== 'FT') total += drainRate * 2.0  // scoring effort
-    if (result.turnover)                         total += drainRate * 1.0  // fumble/stumble
-    if (result.specialEvent === 'steal')         total += drainRate * 1.5  // got stripped
-    if (result.specialEvent === 'block')         total += drainRate * 1.5  // absorb contact
+    if (result.made && result.shotType !== 'FT') total += drainRate * 2.0
+    if (result.turnover)                         total += drainRate * 1.0
+    if (result.specialEvent === 'steal')         total += drainRate * 1.5
+    if (result.specialEvent === 'block')         total += drainRate * 1.5
   } else {
-    // defender
-    if (result.specialEvent === 'steal') total += drainRate * 3.0  // explosive lunge
-    if (result.specialEvent === 'block') total += drainRate * 3.0  // vertical contest
+    if (result.specialEvent === 'steal') total += drainRate * 3.0
+    if (result.specialEvent === 'block') total += drainRate * 3.0
+  }
+  return total
+}
+
+// ─── Shared inline attack helper (used by simulateGame) ──────────────────────
+// Runs one possession, updates energy + box score, returns { play, pts }.
+// Caller must set play.score and play.energySnapshot then push.
+function _runAttackInline(
+  atkTeam, atkMap, defTeam, defMap,
+  teamIndex, quarter, possIdx,
+  atkBoxes, defBoxes, drainMap
+) {
+  const atk = weightedPick(atkTeam,  x => (x.offenseRating + 100) * getEnergyMultiplier(atkMap[x.id]))
+  const def = posMatchPick(defTeam, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(defMap[x.id]))
+
+  const result = simulatePossession(atk, def, atkMap[atk.id], defMap[def.id])
+
+  atkMap[atk.id] = Math.max(0, atkMap[atk.id] - calcActiveDrain(drainMap[atk.id], result, 'attacker'))
+  defMap[def.id] = Math.max(0, defMap[def.id] - calcActiveDrain(drainMap[def.id], result, 'defender'))
+  for (const x of atkTeam) { if (x.id !== atk.id) atkMap[x.id] = Math.max(0, atkMap[x.id] - 0.3) }
+  for (const x of defTeam) { if (x.id !== def.id) defMap[x.id] = Math.max(0, defMap[x.id] - 0.3) }
+
+  updateBox(atkBoxes, atk.id, result, 'attacker')
+  updateBox(defBoxes, def.id, result, 'defender')
+
+  let assister = null
+  if (result.made && result.shotType !== 'FT' && Math.random() < 0.60) {
+    const tm = atkTeam.filter(x => x.id !== atk.id)
+    if (tm.length) {
+      assister = weightedPick(tm, x => Math.max(x.avg?.ast ?? 0, 0.5))
+      atkBoxes[assister.id].ast++
+    }
   }
 
-  return total
+  const play = { quarter, possIdx, teamIndex, attacker: atk, defender: def, assister, ...result,
+    atkEnergyAfter: Math.round(atkMap[atk.id]) }
+  play.description = buildDescription(play)
+  return { play, pts: result.points }
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
 export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
   if (!myStarters?.length || !npcStartersInput?.length) return null
 
-  // Energy tracked by player ID — handles subs cleanly
   const myEnergyMap  = Object.fromEntries(myStarters.map(p => [p.id, 100]))
   const npcEnergyMap = Object.fromEntries([
     ...npcStartersInput.map(p => [p.id, 100]),
     ...npcBenchInput.map(p => [p.id, 100]),
   ])
-
   const drainMap = Object.fromEntries(
     [...myStarters, ...npcStartersInput, ...npcBenchInput].map(p => [p.id, getDrainRate(p)])
   )
@@ -266,79 +279,37 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
   const quarterScores = []
   let myTotal = 0, npcTotal = 0
 
+  // ── Regular quarters ─────────────────────────────────────────────────────
   for (let q = 0; q < QUARTERS; q++) {
+    let possIdx = 0
     let myQ = 0, npcQ = 0
 
     for (let p = 0; p < POSSESSIONS_PER_QUARTER; p++) {
-
-      // ── My team attacks ──────────────────────────────────────────────────
       {
-        const atk = weightedPick(myActive,  x => (x.offenseRating + 100) * getEnergyMultiplier(myEnergyMap[x.id]))
-        const def = posMatchPick(npcActive, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(npcEnergyMap[x.id]))
-
-        const result = simulatePossession(atk, def, myEnergyMap[atk.id], npcEnergyMap[def.id])
-        myTotal += result.points; myQ += result.points
-
-        // Per-action drain (attacker + defender), scaled by each player's rate
-        myEnergyMap[atk.id]  = Math.max(0, myEnergyMap[atk.id]  - calcActiveDrain(drainMap[atk.id], result, 'attacker'))
-        npcEnergyMap[def.id] = Math.max(0, npcEnergyMap[def.id] - calcActiveDrain(drainMap[def.id], result, 'defender'))
-        // Passive drain for everyone else on the court
-        for (const x of myActive)  { if (x.id !== atk.id) myEnergyMap[x.id]  = Math.max(0, myEnergyMap[x.id]  - 0.3) }
-        for (const x of npcActive) { if (x.id !== def.id) npcEnergyMap[x.id] = Math.max(0, npcEnergyMap[x.id] - 0.3) }
-
-        updateBox(boxScore.myTeam,  atk.id, result, 'attacker')
-        updateBox(boxScore.npcTeam, def.id, result, 'defender')
-        if (result.made && result.shotType !== 'FT' && Math.random() < 0.60) {
-          const tm = myActive.filter(x => x.id !== atk.id)
-          if (tm.length) boxScore.myTeam[pick(tm).id].ast++
-        }
-
-        const play = {
-          quarter: q + 1, teamIndex: 0,
-          attacker: atk, defender: def, ...result,
-          atkEnergyAfter: Math.round(myEnergyMap[atk.id]),
-          score: [myTotal, npcTotal],
-          energySnapshot: { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } },
-        }
-        play.description = buildDescription(play)
+        const { play, pts } = _runAttackInline(
+          myActive, myEnergyMap, npcActive, npcEnergyMap,
+          0, q + 1, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap
+        )
+        myTotal += pts; myQ += pts
+        play.score = [myTotal, npcTotal]
+        play.energySnapshot = { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } }
         plays.push(play)
       }
-
-      // ── NPC team attacks ─────────────────────────────────────────────────
       {
-        const atk = weightedPick(npcActive, x => (x.offenseRating + 100) * getEnergyMultiplier(npcEnergyMap[x.id]))
-        const def = posMatchPick(myActive,  atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(myEnergyMap[x.id]))
-
-        const result = simulatePossession(atk, def, npcEnergyMap[atk.id], myEnergyMap[def.id])
-        npcTotal += result.points; npcQ += result.points
-
-        npcEnergyMap[atk.id] = Math.max(0, npcEnergyMap[atk.id] - calcActiveDrain(drainMap[atk.id], result, 'attacker'))
-        myEnergyMap[def.id]  = Math.max(0, myEnergyMap[def.id]  - calcActiveDrain(drainMap[def.id], result, 'defender'))
-        for (const x of npcActive) { if (x.id !== atk.id) npcEnergyMap[x.id] = Math.max(0, npcEnergyMap[x.id] - 0.3) }
-        for (const x of myActive)  { if (x.id !== def.id) myEnergyMap[x.id]  = Math.max(0, myEnergyMap[x.id]  - 0.3) }
-
-        updateBox(boxScore.npcTeam, atk.id, result, 'attacker')
-        updateBox(boxScore.myTeam,  def.id, result, 'defender')
-        if (result.made && result.shotType !== 'FT' && Math.random() < 0.60) {
-          const tm = npcActive.filter(x => x.id !== atk.id)
-          if (tm.length) boxScore.npcTeam[pick(tm).id].ast++
-        }
-
-        const play = {
-          quarter: q + 1, teamIndex: 1,
-          attacker: atk, defender: def, ...result,
-          atkEnergyAfter: Math.round(npcEnergyMap[atk.id]),
-          score: [myTotal, npcTotal],
-          energySnapshot: { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } },
-        }
-        play.description = buildDescription(play)
+        const { play, pts } = _runAttackInline(
+          npcActive, npcEnergyMap, myActive, myEnergyMap,
+          1, q + 1, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap
+        )
+        npcTotal += pts; npcQ += pts
+        play.score = [myTotal, npcTotal]
+        play.energySnapshot = { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } }
         plays.push(play)
       }
     }
 
     quarterScores.push([myQ, npcQ])
 
-    // ── NPC substitutions at end of each quarter (not after last quarter) ──
+    // NPC subs at end of each non-final quarter
     if (q < QUARTERS - 1) {
       for (let i = 0; i < npcActive.length; i++) {
         const tired = npcActive[i]
@@ -347,15 +318,10 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
           if (subIn) {
             npcActive[i] = subIn
             npcBench.splice(npcBench.indexOf(subIn), 1)
-            npcEnergyMap[subIn.id] = 100  // fresh legs
-
+            npcEnergyMap[subIn.id] = 100
             const energyLeft = Math.round(npcEnergyMap[tired.id])
             plays.push({
-              isSub: true,
-              quarter: q + 1,
-              teamIndex: 1,
-              subIn,
-              subOut: tired,
+              isSub: true, quarter: q + 1, teamIndex: 1, subIn, subOut: tired,
               description: {
                 en: `SUB (GSW): ${subIn.last_name} in for ${tired.last_name} (${energyLeft}% energy)`,
                 zh: `换人 (勇士): ${subIn.last_name} 换下 ${tired.last_name}（体力剩余 ${energyLeft}%）`,
@@ -369,6 +335,40 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
     }
   }
 
+  // ── Overtime: keep playing until someone wins ─────────────────────────────
+  let otPeriod = 1   // OT1 = quarter 5, OT2 = quarter 6, ...
+  while (myTotal === npcTotal) {
+    const otQuarter = QUARTERS + otPeriod
+    let myOT = 0, npcOT = 0
+    let possIdx = 0
+
+    for (let p = 0; p < OT_POSSESSIONS; p++) {
+      {
+        const { play, pts } = _runAttackInline(
+          myActive, myEnergyMap, npcActive, npcEnergyMap,
+          0, otQuarter, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap
+        )
+        myTotal += pts; myOT += pts
+        play.score = [myTotal, npcTotal]
+        play.energySnapshot = { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } }
+        plays.push(play)
+      }
+      {
+        const { play, pts } = _runAttackInline(
+          npcActive, npcEnergyMap, myActive, myEnergyMap,
+          1, otQuarter, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap
+        )
+        npcTotal += pts; npcOT += pts
+        play.score = [myTotal, npcTotal]
+        play.energySnapshot = { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } }
+        plays.push(play)
+      }
+    }
+
+    quarterScores.push([myOT, npcOT])
+    otPeriod++
+  }
+
   return {
     plays,
     quarterScores,
@@ -380,17 +380,13 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
 }
 
 // ─── Resume simulation after a mid-game human substitution ───────────────────
-// prefix    : plays already revealed (kept as-is)
-// myLineup  : updated 5-player array (new player already swapped in)
-// npcLineup : current NPC active players at the pause point
-// npcBenchInput : remaining NPC bench
-// state     : { score:[my,npc], quarter:1-4, myEnergies:{}, npcEnergies:{} }
+// Works for any quarter including OT (quarter > 4).
+// state.quarter is the 1-indexed quarter/OT number at the pause point.
 export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = [], state) {
   const { score, quarter } = state
   const myEnergyMap  = { ...state.myEnergies }
   const npcEnergyMap = { ...state.npcEnergies }
 
-  // Any new player (just subbed in by the human) starts with fresh legs
   for (const p of myLineup) {
     if (myEnergyMap[p.id] == null) myEnergyMap[p.id] = 100
   }
@@ -401,12 +397,18 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
   const allKnown = [...myLineup, ...npcLineup, ...npcBenchInput]
   const drainMap = Object.fromEntries(allKnown.map(p => [p.id, getDrainRate(p)]))
 
-  // Determine where we are inside the current quarter
-  const nonSubPrefix  = prefix.filter(p => !p.isSub)
-  const playsInPrevQs = (quarter - 1) * POSSESSIONS_PER_QUARTER * 2
-  const playsInCurQ   = nonSubPrefix.length - playsInPrevQs
-  const posssDoneInCurQ = Math.floor(playsInCurQ / 2)
-  const npcAttacksFirst = playsInCurQ % 2 === 1  // odd → my team already attacked, NPC is next
+  // Determine period type
+  const isOT = quarter > QUARTERS
+
+  // How many plays were done in periods before the current one
+  const playsInPrevPeriods = isOT
+    ? QUARTERS * POSSESSIONS_PER_QUARTER * 2 + (quarter - QUARTERS - 1) * OT_POSSESSIONS * 2
+    : (quarter - 1) * POSSESSIONS_PER_QUARTER * 2
+
+  const nonSubPrefix    = prefix.filter(p => !p.isSub)
+  const playsInCurPeriod = nonSubPrefix.length - playsInPrevPeriods
+  const posssDone        = Math.floor(playsInCurPeriod / 2)
+  const npcAttacksFirst  = playsInCurPeriod % 2 === 1
 
   let [myTotal, npcTotal] = score
 
@@ -415,14 +417,15 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
     npcTeam: Object.fromEntries([...npcLineup, ...npcBenchInput].map(p => [p.id, emptyBox()])),
   }
 
-  const newPlays = []
+  const newPlays   = []
   const newQScores = []
+  const myActive   = [...myLineup]
+  const npcActive  = [...npcLineup]
+  const npcBench   = [...npcBenchInput]
 
-  const myActive  = [...myLineup]
-  const npcActive = [...npcLineup]
-  const npcBench  = [...npcBenchInput]
+  // qtPossIdx continues within current period, then resets for new periods
+  let qtPossIdx = playsInCurPeriod  // start where prefix left off
 
-  // Helper: run one team's attack and push a play
   function runAttack(atkTeam, atkMap, defTeam, defMap, teamIndex, q) {
     const atk = weightedPick(atkTeam, x => (x.offenseRating + 100) * getEnergyMultiplier(atkMap[x.id] ?? 100))
     const def = posMatchPick(defTeam, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(defMap[x.id] ?? 100))
@@ -440,14 +443,19 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
     const defBox = teamIndex === 0 ? boxScore.npcTeam : boxScore.myTeam
     updateBox(atkBox, atk.id, result, 'attacker')
     updateBox(defBox, def.id, result, 'defender')
+
+    let assister = null
     if (result.made && result.shotType !== 'FT' && Math.random() < 0.60) {
       const tm = atkTeam.filter(x => x.id !== atk.id)
-      if (tm.length) atkBox[pick(tm).id].ast++
+      if (tm.length) {
+        assister = weightedPick(tm, x => Math.max(x.avg?.ast ?? 0, 0.5))
+        atkBox[assister.id].ast++
+      }
     }
 
     const play = {
-      quarter: q + 1, teamIndex,
-      attacker: atk, defender: def, ...result,
+      quarter: q + 1, possIdx: qtPossIdx++, teamIndex,
+      attacker: atk, defender: def, assister, ...result,
       atkEnergyAfter: Math.round(atkMap[atk.id]),
       score: [myTotal, npcTotal],
       energySnapshot: { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } },
@@ -457,69 +465,102 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
     return pts
   }
 
-  for (let q = quarter - 1; q < QUARTERS; q++) {
-    let myQ = 0, npcQ = 0
-    const startPoss = q === quarter - 1 ? posssDoneInCurQ : 0
+  // ── Regular quarters (only when resuming within Q1-Q4) ───────────────────
+  if (!isOT) {
+    for (let q = quarter - 1; q < QUARTERS; q++) {
+      // First quarter: continue from where we paused; subsequent: start fresh
+      if (q !== quarter - 1) { qtPossIdx = 0 }
 
-    for (let p = startPoss; p < POSSESSIONS_PER_QUARTER; p++) {
-      // If resuming mid-possession (NPC still needs to attack in p=startPoss), skip my team attack for that slot
-      if (p === startPoss && npcAttacksFirst && q === quarter - 1) {
-        npcQ += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, q)
-      } else {
-        myQ  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, q)
-        npcQ += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, q)
+      let myQ = 0, npcQ = 0
+      const startPoss = q === quarter - 1 ? posssDone : 0
+
+      for (let p = startPoss; p < POSSESSIONS_PER_QUARTER; p++) {
+        if (p === startPoss && npcAttacksFirst && q === quarter - 1) {
+          npcQ += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, q)
+        } else {
+          myQ  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, q)
+          npcQ += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, q)
+        }
       }
-    }
+      newQScores.push([myQ, npcQ])
 
-    newQScores.push([myQ, npcQ])
-
-    if (q < QUARTERS - 1) {
-      for (let i = 0; i < npcActive.length; i++) {
-        const tired = npcActive[i]
-        if (npcEnergyMap[tired.id] < SUB_THRESHOLD) {
-          const subIn = npcBench.find(b => b.position === tired.position)
-          if (subIn) {
-            npcActive[i] = subIn
-            npcBench.splice(npcBench.indexOf(subIn), 1)
-            npcEnergyMap[subIn.id] = 100
-            const energyLeft = Math.round(npcEnergyMap[tired.id])
-            newPlays.push({
-              isSub: true, quarter: q + 1, teamIndex: 1,
-              subIn, subOut: tired,
-              description: {
-                en: `SUB (GSW): ${subIn.last_name} in for ${tired.last_name} (${energyLeft}% energy)`,
-                zh: `换人 (勇士): ${subIn.last_name} 换下 ${tired.last_name}（体力剩余 ${energyLeft}%）`,
-              },
-              score: [myTotal, npcTotal],
-              energySnapshot: { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } },
-            })
+      // NPC subs between regular quarters
+      if (q < QUARTERS - 1) {
+        for (let i = 0; i < npcActive.length; i++) {
+          const tired = npcActive[i]
+          if (npcEnergyMap[tired.id] < SUB_THRESHOLD) {
+            const subIn = npcBench.find(b => b.position === tired.position)
+            if (subIn) {
+              npcActive[i] = subIn
+              npcBench.splice(npcBench.indexOf(subIn), 1)
+              npcEnergyMap[subIn.id] = 100
+              const energyLeft = Math.round(npcEnergyMap[tired.id])
+              newPlays.push({
+                isSub: true, quarter: q + 1, teamIndex: 1, subIn, subOut: tired,
+                description: {
+                  en: `SUB (GSW): ${subIn.last_name} in for ${tired.last_name} (${energyLeft}% energy)`,
+                  zh: `换人 (勇士): ${subIn.last_name} 换下 ${tired.last_name}（体力剩余 ${energyLeft}%）`,
+                },
+                score: [myTotal, npcTotal],
+                energySnapshot: { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } },
+              })
+            }
           }
         }
       }
     }
   }
 
-  // Build full 4-quarter score array from prefix + new plays
-  const fullQScores = []
-  for (let q = 0; q < QUARTERS; q++) {
-    if (q < quarter - 1) {
-      // Completed quarter — sum from prefix
-      const qPlays = prefix.filter(p => !p.isSub && p.quarter === q + 1)
-      let mq = 0, nq = 0
-      for (const play of qPlays) { if (play.teamIndex === 0) mq += play.points; else nq += play.points }
-      fullQScores.push([mq, nq])
-    } else if (q === quarter - 1) {
-      // Current quarter: existing portion + new portion
-      const qPrefixPlays = prefix.filter(p => !p.isSub && p.quarter === q + 1)
-      let mq = 0, nq = 0
-      for (const play of qPrefixPlays) { if (play.teamIndex === 0) mq += play.points; else nq += play.points }
-      const [nm, nn] = newQScores[0] ?? [0, 0]
-      fullQScores.push([mq + nm, nq + nn])
-    } else {
-      const idx = q - (quarter - 1)
-      fullQScores.push(newQScores[idx] ?? [0, 0])
+  // ── OT: finish current OT period (if resuming mid-OT) ───────────────────
+  if (isOT) {
+    // qtPossIdx already set to playsInCurPeriod above
+    let myOT = 0, npcOT = 0
+    for (let p = posssDone; p < OT_POSSESSIONS; p++) {
+      if (p === posssDone && npcAttacksFirst) {
+        npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, quarter - 1)
+      } else {
+        myOT  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, quarter - 1)
+        npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, quarter - 1)
+      }
     }
+    newQScores.push([myOT, npcOT])
   }
+
+  // ── Keep playing OT until there's a winner ───────────────────────────────
+  // nextOtQuarter: the next OT period number to play if still tied
+  let nextOtQuarter = isOT ? quarter + 1 : QUARTERS + 1
+  while (myTotal === npcTotal) {
+    qtPossIdx = 0
+    let myOT = 0, npcOT = 0
+    for (let p = 0; p < OT_POSSESSIONS; p++) {
+      myOT  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, nextOtQuarter - 1)
+      npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, nextOtQuarter - 1)
+    }
+    newQScores.push([myOT, npcOT])
+    nextOtQuarter++
+  }
+
+  // ── Build full quarter/period score array ────────────────────────────────
+  // Unified: prefix periods (from prefix plays) + current period + subsequent periods
+  const fullQScores = []
+
+  // All periods before the current one — sum from prefix
+  for (let q = 1; q < quarter; q++) {
+    const qPlays = prefix.filter(p => !p.isSub && p.quarter === q)
+    let mq = 0, nq = 0
+    for (const play of qPlays) { if (play.teamIndex === 0) mq += play.points; else nq += play.points }
+    fullQScores.push([mq, nq])
+  }
+
+  // Current period: prefix portion + first new score
+  const curPrefixPlays = prefix.filter(p => !p.isSub && p.quarter === quarter)
+  let mq = 0, nq = 0
+  for (const play of curPrefixPlays) { if (play.teamIndex === 0) mq += play.points; else nq += play.points }
+  const [nm, nn] = newQScores[0] ?? [0, 0]
+  fullQScores.push([mq + nm, nq + nn])
+
+  // Subsequent periods (Q{quarter+1} through Q4, plus any OT periods)
+  for (let i = 1; i < newQScores.length; i++) fullQScores.push(newQScores[i])
 
   return {
     plays: [...prefix, ...newPlays],

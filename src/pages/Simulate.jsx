@@ -249,7 +249,7 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang }) {
 function computeLiveBoxScore(plays) {
   const boxes = {}
   function box(id) {
-    if (!boxes[id]) boxes[id] = { pts: 0, to: 0, stl: 0, blk: 0, foul: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, fta: 0, ftm: 0, player: null }
+    if (!boxes[id]) boxes[id] = { pts: 0, ast: 0, to: 0, stl: 0, blk: 0, foul: 0, fga: 0, fgm: 0, fg3a: 0, fg3m: 0, fta: 0, ftm: 0, player: null }
     return boxes[id]
   }
   for (const play of plays) {
@@ -266,6 +266,11 @@ function computeLiveBoxScore(plays) {
         if (play.shotType === '3pt') { b.fg3a++; if (play.made) { b.fg3m++; b.fgm++; b.pts += 3 } }
         else { if (play.made) { b.fgm++; b.pts += 2 } }
       }
+    }
+    if (play.assister && play.made && play.shotType !== 'FT') {
+      const b = box(play.assister.id)
+      b.player = play.assister
+      b.ast++
     }
     if (def) {
       const b = box(def.id)
@@ -313,6 +318,12 @@ function computeFinalBoxScore(plays) {
         else { if (play.made) { b.fgm++; b.pts += 2 } }
         if (play.specialEvent === 'off_reb') b.reb++
       }
+    }
+
+    if (play.assister && play.made && play.shotType !== 'FT') {
+      const b = getBox(atkBoxes, play.assister.id)
+      b.player = play.assister
+      b.ast++
     }
 
     if (def) {
@@ -571,10 +582,27 @@ function PlayRow({ play, isNew, lang }) {
     ? (play.description?.zh || play.description?.en || play.description || '')
     : (play.description?.en || play.description || '')
 
+  // Quarter label: Q1-Q4 or "OT"
+  const otNum  = play.quarter > 4 ? play.quarter - 4 : 0
+  const qLabel = otNum > 0 ? (otNum === 1 ? 'OT' : `${otNum}OT`) : `Q${play.quarter}`
+
+  // Clock: compute time remaining in this quarter from possIdx
+  let clockStr = null
+  if (play.possIdx != null) {
+    const isOT = play.quarter > 4
+    const totalSecs = isOT ? 300 : 720     // 5 min OT, 12 min regular
+    const playsPerQ = isOT ? 20 : 40       // OT_POSS×2=20, POSS_PER_Q×2=40
+    const secPerPlay = totalSecs / playsPerQ
+    const remaining = Math.max(0, totalSecs - (play.possIdx + 1) * secPerPlay)
+    const mm = Math.floor(remaining / 60)
+    const ss = Math.round(remaining % 60)
+    clockStr = `${mm}:${ss.toString().padStart(2, '0')}`
+  }
+
   if (play.isSub) {
     return (
       <div className={`flex items-center gap-2 px-3 py-1 ${isNew ? 'bg-white/5' : ''}`} style={{ fontSize: 13 }}>
-        <span className="text-gray-600 w-6 shrink-0" style={{ fontSize: 11 }}>Q{play.quarter}</span>
+        <span className="text-gray-600 shrink-0" style={{ fontSize: 11, minWidth: 20 }}>{qLabel}</span>
         <span className="text-cyan-600 italic flex-1">{desc}</span>
         <span className="text-gray-700 shrink-0" style={{ fontSize: 11 }}>({play.score[0]}–{play.score[1]})</span>
       </div>
@@ -599,7 +627,11 @@ function PlayRow({ play, isNew, lang }) {
 
   return (
     <div className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 ${isNew ? 'bg-white/5' : ''}`} style={{ fontSize: 13 }}>
-      <span className="text-gray-600 w-6 shrink-0" style={{ fontSize: 11 }}>Q{play.quarter}</span>
+      {/* Quarter + clock inline */}
+      <div className="flex items-center gap-1 shrink-0" style={{ minWidth: 56 }}>
+        <span className="text-gray-600" style={{ fontSize: 11 }}>{qLabel}</span>
+        {clockStr && <span className="text-gray-700" style={{ fontSize: 10 }}>{clockStr}</span>}
+      </div>
       {dot}
       <span className={`flex-1 ${textColor}`}>{desc}</span>
       <span className="text-gray-600 shrink-0" style={{ fontSize: 11 }}>({play.score[0]}–{play.score[1]})</span>
@@ -739,6 +771,18 @@ export default function Simulate() {
   const liveMyEnergy  = lastPlay?.energySnapshot?.myTeam  ?? null
   const liveNpcEnergy = lastPlay?.energySnapshot?.npcTeam ?? null
   const qScores       = gameResult?.quarterScores ?? []
+
+  const currentClockStr = useMemo(() => {
+    if (!lastPlay || lastPlay.possIdx == null || isDone) return null
+    const isOT = lastPlay.quarter > 4
+    const totalSecs  = isOT ? 300 : 720
+    const playsPerQ  = isOT ? 20 : 40
+    const secPerPlay = totalSecs / playsPerQ
+    const remaining  = Math.max(0, totalSecs - (lastPlay.possIdx + 1) * secPerPlay)
+    const mm = Math.floor(remaining / 60)
+    const ss = Math.round(remaining % 60)
+    return `${mm}:${ss.toString().padStart(2, '0')}`
+  }, [lastPlay, isDone])
 
   const currentNpcActive = useMemo(() => {
     let active = [...npcStarters]
@@ -1012,8 +1056,17 @@ export default function Simulate() {
 
         <div className="flex flex-col items-center gap-1">
           <div className="text-gray-500 text-xs">
-            {!gameResult ? t(T.simulate.vs, lang) : isDone ? t(T.simulate.final, lang) : `Q${currentQuarter}`}
+            {!gameResult ? t(T.simulate.vs, lang) : isDone ? t(T.simulate.final, lang) : (() => {
+              if (currentQuarter <= 4) return `Q${currentQuarter}`
+              const n = currentQuarter - 4; return n === 1 ? 'OT' : `${n}OT`
+            })()}
           </div>
+          {currentClockStr && (
+            <div className="font-mono font-black tabular-nums leading-none"
+              style={{ fontSize: 26, color: '#f1f5f9', letterSpacing: '0.02em' }}>
+              {currentClockStr}
+            </div>
+          )}
           {gameResult && (() => {
             // Only show completed quarters; derive current-quarter running score from cumulative total
             const completedQCount = isDone ? qScores.length : Math.max(0, currentQuarter - 1)
@@ -1027,7 +1080,7 @@ export default function Simulate() {
                 {/* Completed quarters */}
                 {completedQScores.map(([m, n], i) => (
                   <div key={i} className="flex flex-col items-center px-1.5 py-0.5 bg-gray-800/70 rounded">
-                    <span className="text-gray-500">Q{i + 1}</span>
+                    <span className="text-gray-500">{i < 4 ? `Q${i + 1}` : i === 4 ? 'OT' : `${i - 3}OT`}</span>
                     <span className="text-orange-300 font-bold">{m}</span>
                     <span className="text-yellow-300 font-bold">{n}</span>
                   </div>
@@ -1035,7 +1088,7 @@ export default function Simulate() {
                 {/* Current quarter live score */}
                 {!isDone && (
                   <div className="flex flex-col items-center px-1.5 py-0.5 bg-gray-800/40 border border-gray-700/40 rounded">
-                    <span className="text-orange-600 font-bold" style={{ fontSize: 8 }}>Q{currentQuarter}▶</span>
+                    <span className="text-orange-600 font-bold" style={{ fontSize: 8 }}>{(() => { if (currentQuarter <= 4) return `Q${currentQuarter}`; const n = currentQuarter - 4; return n === 1 ? 'OT' : `${n}OT` })()}▶</span>
                     <span className="text-orange-300 font-bold">{curQMy}</span>
                     <span className="text-yellow-300 font-bold">{curQNpc}</span>
                   </div>
