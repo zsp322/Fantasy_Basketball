@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react'
 import { TIERS, getTierByName } from '../utils/tiers'
 
-const SALARY_STATE_KEY = 'fbball_salary_state_v2' // v2: game-based streak (lastGp), no random drift
+const SALARY_STATE_KEY = 'fbball_salary_state_v3' // v3: tier sync always runs before daily guard
 const TIER_BOUNDARIES_KEY = 'fbball_tier_boundaries'
 
 // Returns today's date as 'YYYY-MM-DD' — the daily update guard key
@@ -54,18 +54,21 @@ function runDailyUpdate(players, salaryState, boundaries, today) {
     }
 
     const entry = { ...newState[pid] }
-    if (entry.lastUpdatedDate === today) continue   // already ran today
 
-    // ── Sync tier with current assignTiers result ─────────────────────────
+    // ── Sync tier with current assignTiers result (runs every load, not just daily) ──
     // assignTiers may have reclassified this player (e.g. after a season change
-    // or significant avg shift). Keep salary valid by clamping to new tier range.
+    // or significant avg shift). Must run BEFORE the daily guard so stale salaries
+    // are corrected even if today's drift already ran.
     if (entry.tierName !== player.tier.name) {
       const syncedTier = player.tier
       entry.salary = clamp(entry.salary, syncedTier.floor, syncedTier.ceiling)
       entry.tierName = syncedTier.name
       entry.outperformGames = 0
       entry.underperformGames = 0
+      newState[pid] = entry  // persist tier sync immediately
     }
+
+    if (entry.lastUpdatedDate === today) continue   // daily drift already ran today
 
     const prevSalary = entry.salary
     const tier = getTierByName(entry.tierName) ?? player.tier
