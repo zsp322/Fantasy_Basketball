@@ -97,7 +97,7 @@ function AppInner() {
             <Route path="/team" element={<MyTeam team={team} salaryMap={salaryMap} />} />
             <Route path="/league" element={<League />} />
             <Route path="/spin" element={<SlotMachine team={team} />} />
-            <Route path="/simulate" element={<Simulate />} />
+            <Route path="/simulate" element={<Simulate team={team} />} />
           </Routes>
         </div>
       </div>

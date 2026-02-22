@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { useTeam } from '../hooks/useTeam'
 import { useStarters, POS_ORDER } from '../hooks/useStarters'
 import { simulateGame, resumeSimulation, getEnergyMultiplier, getPosMismatchMult } from '../utils/gameEngine'
 import { pickZoneText } from '../data/playTexts'
@@ -743,8 +742,8 @@ function BoxScoreTable({ players, starterIds, boxEntries, label, lang }) {
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export default function Simulate() {
-  const { team: roster, addCash } = useTeam()
+export default function Simulate({ team }) {
+  const { team: roster, addCash } = team
   const { starters } = useStarters(roster)   // persisted lineup — only read, never written during sim
   const { lang } = useSettings()
 
