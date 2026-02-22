@@ -2,7 +2,7 @@ import { useSettings } from '../contexts/SettingsContext'
 import { getPlayerShortName } from '../data/playerNames'
 import { getTierBorderColor, getTierGlow } from '../utils/tiers'
 
-export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer, onDragStart, isDragOver }) {
+export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer, onDragStart, isDragOver, isValue }) {
   const { lang } = useSettings()
   const tierName = player?.tier?.name
   const borderColor = getTierBorderColor(tierName)
@@ -104,6 +104,16 @@ export default function PlayerSlotCard({ pos, player, onClick, onHoverPlayer, on
             >
               {pos}
             </div>
+
+            {/* Value star — bottom left, only for lowest-salary per tier */}
+            {isValue && (
+              <div
+                className="absolute bottom-[35%] left-0.5 font-bold bg-black/60 px-0.5 rounded"
+                style={{ fontSize: '0.55rem', lineHeight: '1.4', color: '#facc15' }}
+              >
+                ★ LOW
+              </div>
+            )}
           </>
         ) : (
           /* Empty slot */

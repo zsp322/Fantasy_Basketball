@@ -6,6 +6,13 @@
 //   SF  → Andre Iguodala
 //   C   → Festus Ezeli
 
+import { getTierByName } from '../utils/tiers'
+
+// Helper: merge canonical tier definition with a custom salary for this NPC roster
+function npcTier(name, salary) {
+  return { ...getTierByName(name), salary }
+}
+
 export const NPC_TEAM_NAME = '2015-16 Golden State Warriors'
 export const NPC_TEAM_SHORT = '2015-16 Warriors'
 export const NPC_TEAM_LOGO = 'https://cdn.nba.com/logos/nba/1610612744/global/L/logo.svg'
@@ -27,7 +34,7 @@ export const npcStarters = [
     },
     offenseRating: 265,
     defenseRating: 98,
-    tier: { name: 'S+', color: 'bg-purple-400', salary: 42 },
+    tier: npcTier('S+', 42),
   },
   {
     id: 'npc_thompson',
@@ -45,7 +52,7 @@ export const npcStarters = [
     },
     offenseRating: 157,
     defenseRating: 63,
-    tier: { name: 'A+', color: 'bg-blue-400', salary: 25 },
+    tier: npcTier('A+', 25),
   },
   {
     id: 'npc_barnes',
@@ -63,7 +70,7 @@ export const npcStarters = [
     },
     offenseRating: 73,
     defenseRating: 59,
-    tier: { name: 'B+', color: 'bg-teal-500', salary: 13 },
+    tier: npcTier('B+', 13),
   },
   {
     id: 'npc_green',
@@ -81,7 +88,7 @@ export const npcStarters = [
     },
     offenseRating: 131,
     defenseRating: 117,
-    tier: { name: 'A', color: 'bg-blue-300', salary: 20 },
+    tier: npcTier('A', 20),
   },
   {
     id: 'npc_bogut',
@@ -99,7 +106,7 @@ export const npcStarters = [
     },
     offenseRating: 55,
     defenseRating: 149,
-    tier: { name: 'B-', color: 'bg-teal-300', salary: 7 },
+    tier: npcTier('B-', 7),
   },
 ]
 
@@ -121,7 +128,7 @@ export const npcBench = [
     },
     offenseRating: 57,
     defenseRating: 50,
-    tier: { name: 'C+', color: 'bg-green-400', salary: 5 },
+    tier: npcTier('C+', 5),
   },
   {
     id: 'npc_iguodala',
@@ -139,7 +146,7 @@ export const npcBench = [
     },
     offenseRating: 70,
     defenseRating: 112,
-    tier: { name: 'B+', color: 'bg-teal-500', salary: 13 },
+    tier: npcTier('B+', 13),
   },
   {
     id: 'npc_ezeli',
@@ -157,6 +164,6 @@ export const npcBench = [
     },
     offenseRating: 23,
     defenseRating: 51,
-    tier: { name: 'C', color: 'bg-green-300', salary: 3 },
+    tier: npcTier('C', 3),
   },
 ]

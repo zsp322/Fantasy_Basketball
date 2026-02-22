@@ -16,6 +16,8 @@ _(all fixed — see Done ✅)_
 
 ## Small Features 💡
 > Visible improvements that can be done in one session.
+1. If the player is in lowest salary of its kinda, gives it a star on left corner of its pic on MyTeam.
+
 
 _(all done — see Done ✅)_
 ---
@@ -26,6 +28,8 @@ _(all done — see Done ✅)_
 1. Add more NPC teams (start with 5 total) — beating each team gives a reward (e.g. 75% of Jokic's salary). Include classic player like 1998 MJ Bulls (salary cap ~30M.).
 
 2. The overall CSS is not good cross screen. For example in my 4k screen. There are a lot of space, but in 2k screen. Some content are seem too big. It fits to mobile for some pages, but my Team screen, the player card is too big
+
+3. Have a tab showing all players, user can search by name, which can see its market salary, stats, etc.
 
 4. Add a coach settings in the team.
 

@@ -48,35 +48,26 @@ export function getTierByName(name) {
 
 // ── Shared tier color helpers (single source of truth) ────────────────────────
 
+// Keyed by the first letter of the tier name (S, A, B, C → color group; D/F → fallback)
+const TIER_COLORS = {
+  S: { border: '#a855f7', glow: 'rgba(168,85,247,0.55)', borderClass: 'border-purple-400' },
+  A: { border: '#60a5fa', glow: 'rgba(96,165,250,0.5)',  borderClass: 'border-blue-400'   },
+  B: { border: '#14b8a6', glow: 'rgba(20,184,166,0.45)', borderClass: 'border-teal-400'   },
+  C: { border: '#4ade80', glow: 'rgba(74,222,128,0.45)', borderClass: 'border-green-400'  },
+  _: { border: '#6b7280', glow: 'rgba(156,163,175,0.25)',borderClass: 'border-gray-600'   },
+}
+
+function _tc(tierName) {
+  if (!tierName) return null
+  return TIER_COLORS[tierName[0]] ?? TIER_COLORS._
+}
+
 /** Hex border color for inline styles */
-export function getTierBorderColor(tierName) {
-  if (!tierName) return '#374151'
-  if (['S+', 'S', 'S-'].includes(tierName)) return '#a855f7'
-  if (['A+', 'A', 'A-'].includes(tierName)) return '#60a5fa'
-  if (['B+', 'B', 'B-'].includes(tierName)) return '#14b8a6'
-  if (['C+', 'C', 'C-'].includes(tierName)) return '#4ade80'
-  return '#6b7280'
-}
-
+export function getTierBorderColor(tierName)  { return _tc(tierName)?.border      ?? '#374151'       }
 /** rgba glow color for box-shadow */
-export function getTierGlow(tierName) {
-  if (!tierName) return 'transparent'
-  if (['S+', 'S', 'S-'].includes(tierName)) return 'rgba(168,85,247,0.55)'
-  if (['A+', 'A', 'A-'].includes(tierName)) return 'rgba(96,165,250,0.5)'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'rgba(20,184,166,0.45)'
-  if (['C+', 'C', 'C-'].includes(tierName)) return 'rgba(74,222,128,0.45)'
-  return 'rgba(156,163,175,0.25)'
-}
-
+export function getTierGlow(tierName)         { return _tc(tierName)?.glow        ?? 'transparent'   }
 /** Tailwind border class for className-based styling */
-export function getTierBorderClass(tierName) {
-  if (!tierName) return 'border-gray-700'
-  if (['S+', 'S', 'S-'].includes(tierName)) return 'border-purple-400'
-  if (['A+', 'A', 'A-'].includes(tierName)) return 'border-blue-400'
-  if (['B+', 'B', 'B-'].includes(tierName)) return 'border-teal-400'
-  if (['C+', 'C', 'C-'].includes(tierName)) return 'border-green-400'
-  return 'border-gray-600'
-}
+export function getTierBorderClass(tierName)  { return _tc(tierName)?.borderClass ?? 'border-gray-700' }
 
 /**
  * Scan a tiered player array and record the min/max fantasyScore seen in each tier.
