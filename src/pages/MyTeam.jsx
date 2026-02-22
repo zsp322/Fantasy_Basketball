@@ -11,7 +11,7 @@ import { T, t } from '../data/i18n'
 import { getPlayerShortName } from '../data/playerNames'
 import { getTierBorderClass } from '../utils/tiers'
 
-function BenchChip({ player, onDragStart, isValue }) {
+function BenchChip({ player, onDragStart }) {
   const { lang } = useSettings()
   const tierName = player.tier?.name
   const ringClass = getTierBorderClass(tierName)
@@ -47,16 +47,6 @@ function BenchChip({ player, onDragStart, isValue }) {
           >
             {tierName}
           </div>
-
-          {/* Value star */}
-          {isValue && (
-            <div
-              className="absolute bottom-0 left-0 font-bold bg-black/60 px-0.5 rounded-tr"
-              style={{ fontSize: '0.45rem', lineHeight: '1.4', color: '#facc15' }}
-            >
-              ★
-            </div>
-          )}
         </div>
 
         {/* Name */}
@@ -112,23 +102,6 @@ export default function MyTeam({ team, salaryMap = {} }) {
   const bench = roster.filter(p => !starterIds.includes(p.id))
   const starterCount = Object.values(starters).filter(Boolean).length
 
-  // Per-tier lowest-salary players get a value star badge
-  const valueIds = (() => {
-    const byTier = {}
-    for (const p of roster) {
-      const key = p.tier?.name ?? 'F'
-      if (!byTier[key]) byTier[key] = []
-      byTier[key].push(p)
-    }
-    const ids = new Set()
-    for (const players of Object.values(byTier)) {
-      const minSal = Math.min(...players.map(p => p.signedSalary ?? p.tier?.salary ?? 0))
-      players
-        .filter(p => (p.signedSalary ?? p.tier?.salary ?? 0) <= minSal)
-        .forEach(p => ids.add(p.id))
-    }
-    return ids
-  })()
   const capPct = Math.min((totalSalary / SALARY_CAP) * 100, 100)
   const capColor = capPct > 90 ? '#ef4444' : capPct > 70 ? '#facc15' : '#22c55e'
 
@@ -144,7 +117,6 @@ export default function MyTeam({ team, salaryMap = {} }) {
         onDropSlot={handleDropOnSlot}
         dragOverPos={dragOverPos}
         onDragOverSlot={setDragOverPos}
-        valueIds={valueIds}
       />
 
       {/* Player stats popup (portal — renders outside overflow-hidden) */}
@@ -249,7 +221,6 @@ export default function MyTeam({ team, salaryMap = {} }) {
               <BenchChip
                 key={p.id}
                 player={p}
-                isValue={valueIds.has(p.id)}
                 onDragStart={e => {
                   e.dataTransfer.effectAllowed = 'move'
                   e.dataTransfer.setData('text/plain', JSON.stringify({ playerId: String(p.id), fromPos: 'bench' }))

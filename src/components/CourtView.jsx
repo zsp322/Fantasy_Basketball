@@ -8,7 +8,7 @@ const SLOTS = [
   { pos: 'C',  x: 50, y: 70 },  // bottom center — near paint
 ]
 
-export default function CourtView({ starters, onSlotClick, onHoverPlayer, onDragStart, onDropSlot, dragOverPos, onDragOverSlot, valueIds }) {
+export default function CourtView({ starters, onSlotClick, onHoverPlayer, onDragStart, onDropSlot, dragOverPos, onDragOverSlot }) {
   return (
     <div
       className="relative w-full h-full overflow-hidden"
@@ -156,7 +156,6 @@ export default function CourtView({ starters, onSlotClick, onHoverPlayer, onDrag
               onHoverPlayer={onHoverPlayer}
               onDragStart={e => onDragStart?.(slot.pos, player, e)}
               isDragOver={dragOverPos === slot.pos}
-              isValue={player ? (valueIds?.has(player.id) ?? false) : false}
             />
           </div>
         )

@@ -16,8 +16,6 @@ _(all fixed — see Done ✅)_
 
 ## Small Features 💡
 > Visible improvements that can be done in one session.
-1. If the player is in lowest salary of its kinda, gives it a star on left corner of its pic on MyTeam.
-
 
 _(all done — see Done ✅)_
 ---
@@ -41,6 +39,8 @@ _(all done — see Done ✅)_
 
 ## After Backend
 1. Simulate against each other. It can either be a live game, or simulate between your team and player's roster as a NPC team
+
+2. **Value Badge (★) — multiplayer feature**: In a multiplayer league, each player (e.g. LeBron) can be owned by multiple users at different locked salaries. The copy with the lowest `signedSalary` across all owners gets a ★ badge on their card, indicating best value. That player also receives a **+5% buff to both offenseRating and defenseRating** in simulation. Requires backend to expose the full league roster with per-owner locked salaries.
 ---
 
 ## Tech Debt 🔧
