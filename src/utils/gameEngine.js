@@ -1,5 +1,6 @@
 import { pickPlayText } from '../data/playTexts.js'
 import { getPlayerShortName } from '../data/playerNames.js'
+import { getOffenseScheme, getDefenseScheme, evaluateNpcScheme, DEFAULT_SCHEMES } from '../data/gameSchemes.js'
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 const QUARTERS = 4
@@ -207,7 +208,8 @@ function updateBox(box, id, result, role) {
 }
 
 // ─── Core possession simulator ───────────────────────────────────────────────
-function simulatePossession(attacker, defender, atkEnergy, defEnergy, zoneMult = 1.0) {
+// offScheme/defScheme/teamDefMult are optional — defaults preserve legacy behavior
+function simulatePossession(attacker, defender, atkEnergy, defEnergy, zoneMult = 1.0, offScheme, defScheme, teamDefMult = 1.0) {
   const atkMult    = getEnergyMultiplier(atkEnergy)
   const defMult    = getEnergyMultiplier(defEnergy)
   const atkPosMult = getPosMismatchMult(attacker.position, attacker.playingAs, attacker.positions)
@@ -215,13 +217,13 @@ function simulatePossession(attacker, defender, atkEnergy, defEnergy, zoneMult =
   const avg = attacker.avg ?? {}
 
   const toBoost  = 1 + (1 - atkPosMult) * 2.0
-  const toChance = (avg.to ?? 0) * 0.042 * toBoost
+  const toChance = (avg.to ?? 0) * 0.042 * toBoost * (defScheme?.oppToMult ?? 1.0)
   if (Math.random() < toChance) {
     const steal = Math.random() < (defender.avg?.stl ?? 0) * defPosMult * 0.12
     return { turnover: true, made: false, points: 0, shotType: null, specialEvent: steal ? 'steal' : null, ftMade: 0 }
   }
 
-  const shotType = pickShotType(avg)
+  let shotType = pickShotType(avg)
 
   if (shotType === 'FT') {
     const ftPct  = Math.min(Math.max(getFtChance(avg) * Math.sqrt(atkPosMult), 0.45), 0.95)
@@ -229,9 +231,16 @@ function simulatePossession(attacker, defender, atkEnergy, defEnergy, zoneMult =
     return { turnover: false, made: ftMade > 0, points: ftMade, shotType: 'FT', specialEvent: null, ftMade }
   }
 
+  // 3-PT Heavy: convert some 2pt attempts to 3pt attempts
+  if (offScheme?.force3Rate && shotType === '2pt' && Math.random() < 0.40) {
+    shotType = '3pt'
+  }
+
   const baseChance = shotType === '3pt' ? get3ptChance(avg) : get2ptChance(avg)
   const atkPower   = (attacker.offenseRating ?? 80) * atkMult * atkPosMult * zoneMult * rand(0.7, 1.3)
-  const defPower   = (defender.defenseRating ?? 60) * defMult * defPosMult * rand(0.7, 1.3)
+  const defPower   = defScheme?.useTeamDef
+    ? (80 * teamDefMult) * rand(0.7, 1.3)
+    : (defender.defenseRating ?? 60) * defMult * defPosMult * (defScheme?.mismatchMult ?? 1.0) * rand(0.7, 1.3)
   const matchupAdj = atkPower / (atkPower + defPower * 0.55)
 
   const hitChance = shotType === '3pt'
@@ -271,22 +280,40 @@ function _runAttackInline(
   atkTeam, atkMap, defTeam, defMap,
   teamIndex, quarter, possIdx,
   atkBoxes, defBoxes, drainMap,
-  atkStreakMap
+  atkStreakMap,
+  offScheme, defScheme,       // scheme objects for this possession
+  npcSchemeIds, mySchemeIds   // stamped on play for UI display
 ) {
-  // Weight by usage volume × offensive efficiency × current energy
-  const atk = weightedPick(atkTeam, x =>
-    getUsagePossessions(x) *
-    ((x.offenseRating ?? 80) / 100 + 0.5) *
-    getEnergyMultiplier(atkMap[x.id])
-  )
+  // Scheme-aware attacker selection
+  let weightFn
+  if (offScheme.usageFlat) {
+    // Ball Movement: equal weight regardless of usage
+    weightFn = x => ((x.offenseRating ?? 80) / 100 + 0.5) * getEnergyMultiplier(atkMap[x.id])
+  } else if (offScheme.force3Rate) {
+    // 3-PT Heavy: boost high-volume 3-point shooters
+    weightFn = x => getUsagePossessions(x) * (1 + (x.avg?.fg3a ?? 0) * 0.12) *
+      ((x.offenseRating ?? 80) / 100 + 0.5) * getEnergyMultiplier(atkMap[x.id])
+  } else {
+    // Isolation (or default): top usage player gets usageTopMult boost
+    const topId = [...atkTeam].sort((a, b) => getUsagePossessions(b) - getUsagePossessions(a))[0].id
+    weightFn = x => getUsagePossessions(x) * (x.id === topId ? offScheme.usageTopMult : 1.0) *
+      ((x.offenseRating ?? 80) / 100 + 0.5) * getEnergyMultiplier(atkMap[x.id])
+  }
+  const atk = weightedPick(atkTeam, weightFn)
   const def = posMatchPick(defTeam, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(defMap[x.id]))
+
+  // Zone defense: pre-compute team defensive multiplier
+  const teamDefMult = defScheme.useTeamDef
+    ? (defTeam.reduce((s, x) => s + (x.defenseRating ?? 60), 0) / defTeam.length / 80)
+      * (defTeam.reduce((s, x) => s + getEnergyMultiplier(defMap[x.id] ?? 100), 0) / defTeam.length)
+    : 1.0
 
   const streakBefore = atkStreakMap[atk.id] ?? 0
   const zoneMult     = getZoneMult(streakBefore)
-  const result = simulatePossession(atk, def, atkMap[atk.id], defMap[def.id], zoneMult)
+  const result = simulatePossession(atk, def, atkMap[atk.id], defMap[def.id], zoneMult, offScheme, defScheme, teamDefMult)
 
   atkMap[atk.id] = Math.max(0, atkMap[atk.id] - calcActiveDrain(drainMap[atk.id], result, 'attacker'))
-  defMap[def.id] = Math.max(0, defMap[def.id] - calcActiveDrain(drainMap[def.id], result, 'defender'))
+  defMap[def.id] = Math.max(0, defMap[def.id] - calcActiveDrain(drainMap[def.id], result, 'defender') * defScheme.energyDrainMult)
   for (const x of atkTeam) { if (x.id !== atk.id) atkMap[x.id] = Math.max(0, atkMap[x.id] - 0.3) }
   for (const x of defTeam) { if (x.id !== def.id) defMap[x.id] = Math.max(0, defMap[x.id] - 0.3) }
 
@@ -294,7 +321,8 @@ function _runAttackInline(
   updateBox(defBoxes, def.id, result, 'defender')
 
   let assister = null
-  if (result.made && result.shotType !== 'FT' && Math.random() < 0.60) {
+  const adjAstProb = Math.min(0.92, Math.max(0.10, 0.60 * offScheme.astMult))
+  if (result.made && result.shotType !== 'FT' && Math.random() < adjAstProb) {
     const tm = atkTeam.filter(x => x.id !== atk.id)
     if (tm.length) {
       // Weight by avg assists; PG gets 1.5× bonus to reflect real-world playmaking role
@@ -310,14 +338,25 @@ function _runAttackInline(
 
   const play = { quarter, possIdx, teamIndex, attacker: atk, defender: def, assister, ...result,
     atkEnergyAfter: Math.round(atkMap[atk.id]),
-    atkZone: getZoneLabel(streakAfter), atkStreak: streakAfter, zoneEntered }
+    atkZone: getZoneLabel(streakAfter), atkStreak: streakAfter, zoneEntered,
+    npcScheme: npcSchemeIds, myScheme: mySchemeIds }
   play.description = buildDescription(play)
   return { play, pts: result.points }
 }
 
 // ─── Main export ─────────────────────────────────────────────────────────────
-export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
+export function simulateGame(myStarters, npcStartersInput, npcBenchInput = [], mySchemes = DEFAULT_SCHEMES) {
   if (!myStarters?.length || !npcStartersInput?.length) return null
+
+  // Resolve user schemes
+  const myOff = getOffenseScheme(mySchemes.offense)
+  const myDef = getDefenseScheme(mySchemes.defense)
+  const mySchemeIds = { offense: myOff.id, defense: myDef.id }
+
+  // NPC starts with AI evaluation for Q1
+  let npcSchemeIds = evaluateNpcScheme({ myScore: 0, npcScore: 0, quarter: 1, npcAvgEnergy: 100 })
+  let npcOff = getOffenseScheme(npcSchemeIds.offense)
+  let npcDef = getDefenseScheme(npcSchemeIds.defense)
 
   const myEnergyMap  = Object.fromEntries(myStarters.map(p => [p.id, 100]))
   const npcEnergyMap = Object.fromEntries([
@@ -353,7 +392,8 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
       {
         const { play, pts } = _runAttackInline(
           myActive, myEnergyMap, npcActive, npcEnergyMap,
-          0, q + 1, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap, myStreakMap
+          0, q + 1, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap, myStreakMap,
+          myOff, npcDef, npcSchemeIds, mySchemeIds
         )
         myTotal += pts; myQ += pts
         play.score = [myTotal, npcTotal]
@@ -363,7 +403,8 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
       {
         const { play, pts } = _runAttackInline(
           npcActive, npcEnergyMap, myActive, myEnergyMap,
-          1, q + 1, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap, npcStreakMap
+          1, q + 1, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap, npcStreakMap,
+          npcOff, myDef, npcSchemeIds, mySchemeIds
         )
         npcTotal += pts; npcQ += pts
         play.score = [myTotal, npcTotal]
@@ -397,6 +438,12 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
           }
         }
       }
+
+      // NPC AI re-evaluates scheme for next quarter
+      const npcAvgEnergy = npcActive.reduce((s, p) => s + (npcEnergyMap[p.id] ?? 100), 0) / npcActive.length
+      npcSchemeIds = evaluateNpcScheme({ myScore: myTotal, npcScore: npcTotal, quarter: q + 2, npcAvgEnergy })
+      npcOff = getOffenseScheme(npcSchemeIds.offense)
+      npcDef = getDefenseScheme(npcSchemeIds.defense)
     }
   }
 
@@ -404,6 +451,13 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
   let otPeriod = 1   // OT1 = quarter 5, OT2 = quarter 6, ...
   while (myTotal === npcTotal) {
     const otQuarter = QUARTERS + otPeriod
+
+    // NPC re-evaluates scheme at start of each OT period
+    const npcAvgEnergyOT = npcActive.reduce((s, p) => s + (npcEnergyMap[p.id] ?? 100), 0) / npcActive.length
+    npcSchemeIds = evaluateNpcScheme({ myScore: myTotal, npcScore: npcTotal, quarter: otQuarter, npcAvgEnergy: npcAvgEnergyOT })
+    npcOff = getOffenseScheme(npcSchemeIds.offense)
+    npcDef = getDefenseScheme(npcSchemeIds.defense)
+
     let myOT = 0, npcOT = 0
     let possIdx = 0
 
@@ -411,7 +465,8 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
       {
         const { play, pts } = _runAttackInline(
           myActive, myEnergyMap, npcActive, npcEnergyMap,
-          0, otQuarter, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap, myStreakMap
+          0, otQuarter, possIdx++, boxScore.myTeam, boxScore.npcTeam, drainMap, myStreakMap,
+          myOff, npcDef, npcSchemeIds, mySchemeIds
         )
         myTotal += pts; myOT += pts
         play.score = [myTotal, npcTotal]
@@ -421,7 +476,8 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
       {
         const { play, pts } = _runAttackInline(
           npcActive, npcEnergyMap, myActive, myEnergyMap,
-          1, otQuarter, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap, npcStreakMap
+          1, otQuarter, possIdx++, boxScore.npcTeam, boxScore.myTeam, drainMap, npcStreakMap,
+          npcOff, myDef, npcSchemeIds, mySchemeIds
         )
         npcTotal += pts; npcOT += pts
         play.score = [myTotal, npcTotal]
@@ -444,10 +500,10 @@ export function simulateGame(myStarters, npcStartersInput, npcBenchInput = []) {
   }
 }
 
-// ─── Resume simulation after a mid-game human substitution ───────────────────
+// ─── Resume simulation after a mid-game human substitution or scheme change ───
 // Works for any quarter including OT (quarter > 4).
 // state.quarter is the 1-indexed quarter/OT number at the pause point.
-export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = [], state) {
+export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = [], state, mySchemes = DEFAULT_SCHEMES, initialNpcSchemes = null) {
   const { score, quarter } = state
   const myEnergyMap  = { ...state.myEnergies }
   const npcEnergyMap = { ...state.npcEnergies }
@@ -462,6 +518,18 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
 
   const allKnown = [...myLineup, ...npcLineup, ...npcBenchInput]
   const drainMap = Object.fromEntries(allKnown.map(p => [p.id, getDrainRate(p)]))
+
+  // Resolve user schemes
+  const myOff = getOffenseScheme(mySchemes.offense)
+  const myDef = getDefenseScheme(mySchemes.defense)
+  const mySchemeIds = { offense: myOff.id, defense: myDef.id }
+
+  // NPC scheme: use provided override, or derive from last play in prefix, or evaluate fresh
+  const lastNpcSchemeFromPrefix = [...prefix].reverse().find(p => !p.isSub && p.npcScheme)?.npcScheme ?? null
+  let npcSchemeIds = initialNpcSchemes ?? lastNpcSchemeFromPrefix
+    ?? evaluateNpcScheme({ myScore: score[0], npcScore: score[1], quarter, npcAvgEnergy: 100 })
+  let npcOff = getOffenseScheme(npcSchemeIds.offense)
+  let npcDef = getDefenseScheme(npcSchemeIds.defense)
 
   // Determine period type
   const isOT = quarter > QUARTERS
@@ -509,24 +577,38 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
   // qtPossIdx continues within current period, then resets for new periods
   let qtPossIdx = playsInCurPeriod  // start where prefix left off
 
-  function runAttack(atkTeam, atkMap, defTeam, defMap, teamIndex, q) {
+  function runAttack(atkTeam, atkMap, defTeam, defMap, teamIndex, q, offScheme, defScheme) {
     const atkStreakMap = teamIndex === 0 ? myStreakMap : npcStreakMap
-    // Weight by usage volume × offensive efficiency × current energy
-    const atk = weightedPick(atkTeam, x =>
-      getUsagePossessions(x) *
-      ((x.offenseRating ?? 80) / 100 + 0.5) *
-      getEnergyMultiplier(atkMap[x.id] ?? 100)
-    )
+
+    // Scheme-aware attacker selection
+    let weightFn
+    if (offScheme.usageFlat) {
+      weightFn = x => ((x.offenseRating ?? 80) / 100 + 0.5) * getEnergyMultiplier(atkMap[x.id] ?? 100)
+    } else if (offScheme.force3Rate) {
+      weightFn = x => getUsagePossessions(x) * (1 + (x.avg?.fg3a ?? 0) * 0.12) *
+        ((x.offenseRating ?? 80) / 100 + 0.5) * getEnergyMultiplier(atkMap[x.id] ?? 100)
+    } else {
+      const topId = [...atkTeam].sort((a, b) => getUsagePossessions(b) - getUsagePossessions(a))[0].id
+      weightFn = x => getUsagePossessions(x) * (x.id === topId ? offScheme.usageTopMult : 1.0) *
+        ((x.offenseRating ?? 80) / 100 + 0.5) * getEnergyMultiplier(atkMap[x.id] ?? 100)
+    }
+    const atk = weightedPick(atkTeam, weightFn)
     const def = posMatchPick(defTeam, atk.position, x => (x.defenseRating + 80) * getEnergyMultiplier(defMap[x.id] ?? 100))
+
+    // Zone defense: pre-compute team defensive multiplier
+    const teamDefMult = defScheme.useTeamDef
+      ? (defTeam.reduce((s, x) => s + (x.defenseRating ?? 60), 0) / defTeam.length / 80)
+        * (defTeam.reduce((s, x) => s + getEnergyMultiplier(defMap[x.id] ?? 100), 0) / defTeam.length)
+      : 1.0
 
     const streakBefore = atkStreakMap[atk.id] ?? 0
     const zoneMult     = getZoneMult(streakBefore)
-    const result = simulatePossession(atk, def, atkMap[atk.id] ?? 100, defMap[def.id] ?? 100, zoneMult)
+    const result = simulatePossession(atk, def, atkMap[atk.id] ?? 100, defMap[def.id] ?? 100, zoneMult, offScheme, defScheme, teamDefMult)
     const pts = result.points
     if (teamIndex === 0) myTotal += pts; else npcTotal += pts
 
     atkMap[atk.id] = Math.max(0, (atkMap[atk.id] ?? 100) - calcActiveDrain(drainMap[atk.id] ?? 1, result, 'attacker'))
-    defMap[def.id] = Math.max(0, (defMap[def.id] ?? 100) - calcActiveDrain(drainMap[def.id] ?? 1, result, 'defender'))
+    defMap[def.id] = Math.max(0, (defMap[def.id] ?? 100) - calcActiveDrain(drainMap[def.id] ?? 1, result, 'defender') * defScheme.energyDrainMult)
     for (const x of atkTeam) if (x.id !== atk.id) atkMap[x.id] = Math.max(0, (atkMap[x.id] ?? 100) - 0.3)
     for (const x of defTeam) if (x.id !== def.id) defMap[x.id] = Math.max(0, (defMap[x.id] ?? 100) - 0.3)
 
@@ -536,7 +618,8 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
     updateBox(defBox, def.id, result, 'defender')
 
     let assister = null
-    if (result.made && result.shotType !== 'FT' && Math.random() < 0.60) {
+    const adjAstProb = Math.min(0.92, Math.max(0.10, 0.60 * offScheme.astMult))
+    if (result.made && result.shotType !== 'FT' && Math.random() < adjAstProb) {
       const tm = atkTeam.filter(x => x.id !== atk.id)
       if (tm.length) {
         // Weight by avg assists; PG gets 1.5× bonus to reflect real-world playmaking role
@@ -557,6 +640,7 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
       atkZone: getZoneLabel(streakAfter), atkStreak: streakAfter, zoneEntered,
       score: [myTotal, npcTotal],
       energySnapshot: { myTeam: { ...myEnergyMap }, npcTeam: { ...npcEnergyMap } },
+      npcScheme: npcSchemeIds, myScheme: mySchemeIds,
     }
     play.description = buildDescription(play)
     newPlays.push(play)
@@ -574,15 +658,15 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
 
       for (let p = startPoss; p < POSSESSIONS_PER_QUARTER; p++) {
         if (p === startPoss && npcAttacksFirst && q === quarter - 1) {
-          npcQ += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, q)
+          npcQ += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, q, npcOff, myDef)
         } else {
-          myQ  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, q)
-          npcQ += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, q)
+          myQ  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, q, myOff, npcDef)
+          npcQ += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, q, npcOff, myDef)
         }
       }
       newQScores.push([myQ, npcQ])
 
-      // NPC subs between regular quarters
+      // NPC subs + AI scheme re-evaluation between regular quarters
       if (q < QUARTERS - 1) {
         for (let i = 0; i < npcActive.length; i++) {
           const tired = npcActive[i]
@@ -605,6 +689,12 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
             }
           }
         }
+
+        // NPC AI re-evaluates scheme for next quarter
+        const npcAvgEnergy = npcActive.reduce((s, p) => s + (npcEnergyMap[p.id] ?? 100), 0) / npcActive.length
+        npcSchemeIds = evaluateNpcScheme({ myScore: myTotal, npcScore: npcTotal, quarter: q + 2, npcAvgEnergy })
+        npcOff = getOffenseScheme(npcSchemeIds.offense)
+        npcDef = getDefenseScheme(npcSchemeIds.defense)
       }
     }
   }
@@ -615,10 +705,10 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
     let myOT = 0, npcOT = 0
     for (let p = posssDone; p < OT_POSSESSIONS; p++) {
       if (p === posssDone && npcAttacksFirst) {
-        npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, quarter - 1)
+        npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, quarter - 1, npcOff, myDef)
       } else {
-        myOT  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, quarter - 1)
-        npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, quarter - 1)
+        myOT  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, quarter - 1, myOff, npcDef)
+        npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, quarter - 1, npcOff, myDef)
       }
     }
     newQScores.push([myOT, npcOT])
@@ -629,10 +719,16 @@ export function resumeSimulation(prefix, myLineup, npcLineup, npcBenchInput = []
   let nextOtQuarter = isOT ? quarter + 1 : QUARTERS + 1
   while (myTotal === npcTotal) {
     qtPossIdx = 0
+    // NPC re-evaluates for each OT period
+    const npcAvgEnergyOT = npcActive.reduce((s, p) => s + (npcEnergyMap[p.id] ?? 100), 0) / npcActive.length
+    npcSchemeIds = evaluateNpcScheme({ myScore: myTotal, npcScore: npcTotal, quarter: nextOtQuarter, npcAvgEnergy: npcAvgEnergyOT })
+    npcOff = getOffenseScheme(npcSchemeIds.offense)
+    npcDef = getDefenseScheme(npcSchemeIds.defense)
+
     let myOT = 0, npcOT = 0
     for (let p = 0; p < OT_POSSESSIONS; p++) {
-      myOT  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, nextOtQuarter - 1)
-      npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, nextOtQuarter - 1)
+      myOT  += runAttack(myActive, myEnergyMap, npcActive, npcEnergyMap, 0, nextOtQuarter - 1, myOff, npcDef)
+      npcOT += runAttack(npcActive, npcEnergyMap, myActive, myEnergyMap, 1, nextOtQuarter - 1, npcOff, myDef)
     }
     newQScores.push([myOT, npcOT])
     nextOtQuarter++

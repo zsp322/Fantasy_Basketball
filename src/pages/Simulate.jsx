@@ -8,6 +8,7 @@ import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerShortName, getPlayerName } from '../data/playerNames'
 import { getTierBorderColor } from '../utils/tiers'
+import { OFFENSE_SCHEMES, DEFENSE_SCHEMES, loadSchemes, saveSchemes } from '../data/gameSchemes'
 
 const SPEEDS = [
   { labelKey: 'slow',   ms: 500 },
@@ -558,7 +559,7 @@ function BenchSwapPanel({ swapTarget, bench, onSwap, onClose, lang }) {
 }
 
 // ─── Team column (vertical list) ──────────────────────────────────────────────
-function TeamColumn({ label, players, energies, zones, side, canSwap, onCardClick, lang }) {
+function TeamColumn({ label, players, energies, zones, side, canSwap, onCardClick, lang, schemeLabel }) {
   return (
     <div
       className="relative flex-shrink-0 flex flex-col h-full"
@@ -570,11 +571,20 @@ function TeamColumn({ label, players, energies, zones, side, canSwap, onCardClic
     >
       {/* Label */}
       <div
-        className={`flex-shrink-0 px-2 py-2 font-bold tracking-wider uppercase truncate ${side === 'left' ? 'text-orange-400 text-left' : 'text-yellow-400 text-right'}`}
+        className={`flex-shrink-0 px-2 pt-2 font-bold tracking-wider uppercase truncate ${side === 'left' ? 'text-orange-400 text-left' : 'text-yellow-400 text-right'}`}
         style={{ fontSize: 9 }}
       >
         {label}
       </div>
+      {/* Scheme label */}
+      {schemeLabel && (
+        <div
+          className={`flex-shrink-0 px-2 pb-1 truncate ${side === 'left' ? 'text-left' : 'text-right'}`}
+          style={{ fontSize: 8, color: '#6b7280' }}
+        >
+          {schemeLabel}
+        </div>
+      )}
 
       {/* Player cards */}
       <div
@@ -773,6 +783,7 @@ export default function Simulate({ team }) {
   const [swapTarget, setSwapTarget]         = useState(null)
 
   const [rewardGranted, setRewardGranted] = useState(false)
+  const [mySchemes, setMySchemes] = useState(() => loadSchemes())
 
   const logRef           = useRef(null)
   const intervalRef      = useRef(null)
@@ -838,6 +849,15 @@ export default function Simulate({ team }) {
 
   const usedNpcIds = new Set(currentNpcActive.map(p => p.id))
   const remainingNpcBench = npcBench.filter(p => !usedNpcIds.has(p.id))
+
+  // Current NPC scheme — derived from last non-sub play stamp
+  const currentNpcScheme = useMemo(() => {
+    for (let i = visiblePlays.length - 1; i >= 0; i--) {
+      const play = visiblePlays[i]
+      if (!play.isSub && play.npcScheme) return play.npcScheme
+    }
+    return null
+  }, [visiblePlays])
 
   // Derive current zone state for each player from visible plays (in order).
   // Sub events clear the subbed-out player's zone so returning subs start fresh.
@@ -941,7 +961,8 @@ export default function Simulate({ team }) {
         myEnergies:  recoveredEnergies,
         npcEnergies: lastPlay.energySnapshot.npcTeam,
       }
-      const newResult = resumeSimulation(visiblePlays, manualList, currentNpcActive, remainingNpcBench, state)
+      const lastNpcSchemeAS = [...visiblePlays].reverse().find(p => !p.isSub && p.npcScheme)?.npcScheme ?? null
+      const newResult = resumeSimulation(visiblePlays, manualList, currentNpcActive, remainingNpcBench, state, mySchemes, lastNpcSchemeAS)
       setGameResult(newResult)
       break // one sub per tick; next tick handles any remaining tired players
     }
@@ -970,7 +991,7 @@ export default function Simulate({ team }) {
     rewardGivenRef.current = false
     setRewardGranted(false)
     setSimStartersMap({ ...starters })   // snapshot persisted lineup for this game session
-    const result = simulateGame(myStartersList, npcStarters, [...npcBench])
+    const result = simulateGame(myStartersList, npcStarters, [...npcBench], mySchemes)
     setGameResult(result)
     setRevealed(0)
     setIsAnimating(true)
@@ -1022,6 +1043,35 @@ export default function Simulate({ team }) {
     setSwapTarget(null)
   }
 
+  function handleSchemeChange(newSchemes) {
+    setMySchemes(newSchemes)
+    saveSchemes(newSchemes)  // persists as new default for MyTeam too
+
+    if (!gameResult || !lastPlay || isDone) return
+
+    // Compute recovered bench energies (same logic as handleSwap and auto-sim)
+    const recoveredEnergies = { ...(lastPlay.energySnapshot.myTeam ?? {}) }
+    for (const [id, info] of Object.entries(benchedAtRef.current)) {
+      const playsOnBench = revealed - info.revealedWhen
+      recoveredEnergies[id] = Math.min(100, info.energyWhenBenched + playsOnBench * BENCH_RECOVERY_RATE)
+    }
+
+    // Build lineup from current activeStarters — no player changes, scheme only
+    const manualList = POS_ORDER.map(p => {
+      const existing = activeStarters[p]
+      return existing ? { ...existing, playingAs: p } : null
+    }).filter(Boolean)
+
+    const lastNpcScheme = [...visiblePlays].reverse().find(p => !p.isSub && p.npcScheme)?.npcScheme ?? null
+    const state = {
+      score: lastPlay.score,
+      quarter: lastPlay.quarter,
+      myEnergies: recoveredEnergies,
+      npcEnergies: lastPlay.energySnapshot.npcTeam,
+    }
+    setGameResult(resumeSimulation(visiblePlays, manualList, currentNpcActive, remainingNpcBench, state, newSchemes, lastNpcScheme))
+  }
+
   // Re-start animation when isPaused becomes false (mid-game)
   useEffect(() => {
     if (!isPaused && isAnimating && gameResult && !isDone) {
@@ -1071,7 +1121,8 @@ export default function Simulate({ team }) {
         myEnergies:  recoveredEnergies,
         npcEnergies: lastPlay.energySnapshot.npcTeam,
       }
-      const newResult = resumeSimulation(visiblePlays, manualList, currentNpcActive, remainingNpcBench, state)
+      const lastNpcSchemeSwap = [...visiblePlays].reverse().find(p => !p.isSub && p.npcScheme)?.npcScheme ?? null
+      const newResult = resumeSimulation(visiblePlays, manualList, currentNpcActive, remainingNpcBench, state, mySchemes, lastNpcSchemeSwap)
       setGameResult(newResult)
     }
   }
@@ -1210,6 +1261,7 @@ export default function Simulate({ team }) {
           canSwap={canSwap}
           onCardClick={handleCardClick}
           lang={lang}
+          schemeLabel={gameResult ? `${t(T.schemes[mySchemes.offense], lang)} · ${t(T.schemes[mySchemes.defense], lang)}` : null}
         />
 
         {/* Center: controls + content */}
@@ -1230,6 +1282,24 @@ export default function Simulate({ team }) {
                 >
                   {autoSim ? t(T.simulate.autoSimulate, lang) : t(T.simulate.autoSimulateOff, lang)}
                 </button>
+                {/* Pre-game scheme picker */}
+                <div className="flex items-center gap-1 border-l border-gray-700/60 pl-2 ml-1">
+                  <select value={mySchemes.offense} onChange={e => handleSchemeChange({ ...mySchemes, offense: e.target.value })}
+                    className="rounded px-1 text-orange-400 font-semibold border-0 cursor-pointer"
+                    style={{ fontSize: 10, background: '#111827', padding: '2px 4px' }}>
+                    {Object.keys(OFFENSE_SCHEMES).map(id => (
+                      <option key={id} value={id}>{t(T.schemes[id], lang)}</option>
+                    ))}
+                  </select>
+                  <span className="text-gray-700" style={{ fontSize: 9 }}>|</span>
+                  <select value={mySchemes.defense} onChange={e => handleSchemeChange({ ...mySchemes, defense: e.target.value })}
+                    className="rounded px-1 text-blue-400 font-semibold border-0 cursor-pointer"
+                    style={{ fontSize: 10, background: '#111827', padding: '2px 4px' }}>
+                    {Object.keys(DEFENSE_SCHEMES).map(id => (
+                      <option key={id} value={id}>{t(T.schemes[id], lang)}</option>
+                    ))}
+                  </select>
+                </div>
               </>
             )}
 
@@ -1301,6 +1371,27 @@ export default function Simulate({ team }) {
               </>
             )}
 
+            {/* Mid-game scheme picker — shown when game is active */}
+            {gameResult && !isDone && (
+              <div className="flex items-center gap-1 border-l border-gray-700/60 pl-2 ml-1">
+                <select value={mySchemes.offense} onChange={e => handleSchemeChange({ ...mySchemes, offense: e.target.value })}
+                  className="rounded px-1 text-orange-400 font-semibold border-0 cursor-pointer"
+                  style={{ fontSize: 10, background: '#111827', padding: '2px 4px' }}>
+                  {Object.keys(OFFENSE_SCHEMES).map(id => (
+                    <option key={id} value={id}>{t(T.schemes[id], lang)}</option>
+                  ))}
+                </select>
+                <span className="text-gray-700" style={{ fontSize: 9 }}>|</span>
+                <select value={mySchemes.defense} onChange={e => handleSchemeChange({ ...mySchemes, defense: e.target.value })}
+                  className="rounded px-1 text-blue-400 font-semibold border-0 cursor-pointer"
+                  style={{ fontSize: 10, background: '#111827', padding: '2px 4px' }}>
+                  {Object.keys(DEFENSE_SCHEMES).map(id => (
+                    <option key={id} value={id}>{t(T.schemes[id], lang)}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="ml-auto text-gray-600 text-xs">
               {gameResult
                 ? t(T.simulate.playsCount, lang, revealed, gameResult.plays.length)
@@ -1358,6 +1449,9 @@ export default function Simulate({ team }) {
           canSwap={false}
           onCardClick={null}
           lang={lang}
+          schemeLabel={currentNpcScheme
+            ? `${t(T.schemes[currentNpcScheme.offense], lang)} · ${t(T.schemes[currentNpcScheme.defense], lang)}`
+            : null}
         />
       </div>
 

@@ -37,10 +37,18 @@ async function fetchAllRosters() {
 }
 
 // Fetch all season averages from ESPN stats API (paginated)
+// NBA season ID = the year the season ends (Oct 2025–Jun 2026 → season 2026)
+function getCurrentNbaSeason() {
+  const now = new Date()
+  // Season starts in October; months 9–11 (Oct–Dec) belong to the next calendar year's season
+  return now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear()
+}
+
 async function fetchAllStats() {
   const statsMap = {}
   let page = 1
   let totalPages = 1
+  const season = String(getCurrentNbaSeason())
 
   do {
     const url = new URL(ESPN_STATS_URL)
@@ -51,7 +59,7 @@ async function fetchAllStats() {
     url.searchParams.set('limit', '100')
     url.searchParams.set('page', page)
     url.searchParams.set('sort', 'offensive.avgPoints:desc')
-    url.searchParams.set('season', '2025')
+    url.searchParams.set('season', season)
     url.searchParams.set('seasontype', '2')
 
     const res = await fetch(url)

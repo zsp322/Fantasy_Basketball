@@ -170,6 +170,29 @@ export const T = {
     player: { en: 'Player', zh: '球员' },
   },
 
+  // ── Schemes ────────────────────────────────────────────────────────────────
+  schemes: {
+    title:        { en: 'Game Plan',     zh: '战术方案' },
+    offense:      { en: 'Offense',       zh: '进攻战术' },
+    defense:      { en: 'Defense',       zh: '防守战术' },
+    isolation:    { en: 'Isolation',     zh: '单打' },
+    ballMovement: { en: 'Ball Movement', zh: '流动进攻' },
+    threeHeavy:   { en: '3-PT Heavy',    zh: '三分轰炸' },
+    manToMan:     { en: 'Man-to-Man',    zh: '人盯人' },
+    zone:         { en: 'Zone',          zh: '区域防守' },
+    pressure:     { en: 'Pressure',      zh: '全场紧逼' },
+    schemeChanged: { en: (o, d) => `▶ Strategy: ${o} / ${d}`, zh: (o, d) => `▶ 战术调整：${o} / ${d}` },
+    // Short chip labels for scheme picker buttons
+    short: {
+      isolation:    { en: 'ISO',   zh: '单打' },
+      ballMovement: { en: 'BM',    zh: '流动' },
+      threeHeavy:   { en: '3PT',   zh: '三分' },
+      manToMan:     { en: 'M2M',   zh: '人盯人' },
+      zone:         { en: 'ZONE',  zh: '区域' },
+      pressure:     { en: 'PRESS', zh: '紧逼' },
+    },
+  },
+
   // ── Shared ─────────────────────────────────────────────────────────────────
   shared: {
     atk:  { en: 'ATK', zh: '攻击' },

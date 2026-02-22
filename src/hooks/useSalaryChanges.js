@@ -13,22 +13,12 @@
 import { useState, useEffect } from 'react'
 import { TIERS, getTierByName } from '../utils/tiers'
 
-const SALARY_STATE_KEY = 'fbball_salary_state_v1'
+const SALARY_STATE_KEY = 'fbball_salary_state_v2' // v2: game-based streak (lastGp), no random drift
 const TIER_BOUNDARIES_KEY = 'fbball_tier_boundaries'
 
 // Returns today's date as 'YYYY-MM-DD' — the daily update guard key
 function getToday() {
   return new Date().toISOString().split('T')[0]
-}
-
-// Deterministic pseudo-random float [0, 1) for a given string seed.
-// Same player + same date always produces the same value (consistent across sessions).
-function seededRandom(seed) {
-  let h = 0
-  for (let i = 0; i < seed.length; i++) {
-    h = Math.imul(31, h) + seed.charCodeAt(i) | 0
-  }
-  return (h >>> 0) / 0xFFFFFFFF
 }
 
 function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
@@ -49,13 +39,16 @@ function runDailyUpdate(players, salaryState, boundaries, today) {
     if (!player.tier?.name || !player.id) continue
     const pid = String(player.id)
 
+    const currentGp = player.avg?.gp ?? 0
+
     // Initialize state for new players
     if (!newState[pid]) {
       newState[pid] = {
         salary: player.tier.salary,     // start at tier midpoint
         tierName: player.tier.name,
-        overperformDays: 0,
-        underperformDays: 0,
+        outperformGames: 0,
+        underperformGames: 0,
+        lastGp: currentGp,              // track games played to detect new games
         lastUpdatedDate: null,
       }
     }
@@ -69,40 +62,50 @@ function runDailyUpdate(players, salaryState, boundaries, today) {
     const bounds = boundaries[tier.name]
     let tierChanged = null
 
-    // ── Tier promotion / demotion ─────────────────────────────────────────
-    if (bounds && player.fantasyScore != null) {
+    // ── Tier promotion / demotion (game-based streak) ─────────────────────
+    // Only count when a new game was actually played (gp increased).
+    // Injury/rest periods naturally freeze the streak.
+    //
+    // FUTURE: Replace fantasyScore (season avg) with last-game box score to
+    // make streaks react to individual performances rather than slow avg drift.
+    // Requires ESPN game log API: /apis/common/v3/sports/basketball/nba/athletes/{id}/gamelog
+    const newGame = currentGp > (entry.lastGp ?? 0)
+    if (newGame && bounds && player.fantasyScore != null) {
       if (player.fantasyScore > bounds.maxScore) {
-        entry.overperformDays = (entry.overperformDays || 0) + 1
-        entry.underperformDays = 0
-        if (entry.overperformDays >= 7 && tierIdx > 0) {
+        entry.outperformGames = (entry.outperformGames || 0) + 1
+        entry.underperformGames = 0
+        if (entry.outperformGames >= 5 && tierIdx > 0) {
           const newTier = TIERS[tierIdx - 1]
           tierChanged = { from: tier.name, to: newTier.name, direction: 'up' }
           entry.tierName = newTier.name
           // Enter near the bottom of the new tier — must earn the rest
           entry.salary = newTier.floor + 0.2 * (newTier.ceiling - newTier.floor)
-          entry.overperformDays = 0
-          entry.underperformDays = 0
+          entry.outperformGames = 0
+          entry.underperformGames = 0
         }
       } else if (player.fantasyScore < bounds.minScore) {
-        entry.underperformDays = (entry.underperformDays || 0) + 1
-        entry.overperformDays = 0
-        if (entry.underperformDays >= 7 && tierIdx < TIERS.length - 1) {
+        entry.underperformGames = (entry.underperformGames || 0) + 1
+        entry.outperformGames = 0
+        if (entry.underperformGames >= 5 && tierIdx < TIERS.length - 1) {
           const newTier = TIERS[tierIdx + 1]
           tierChanged = { from: tier.name, to: newTier.name, direction: 'down' }
           entry.tierName = newTier.name
           // Enter near the top of the new tier — still holding some value
           entry.salary = newTier.ceiling - 0.2 * (newTier.ceiling - newTier.floor)
-          entry.overperformDays = 0
-          entry.underperformDays = 0
+          entry.outperformGames = 0
+          entry.underperformGames = 0
         }
       } else {
-        // In-tier: any in-range day resets the streak
-        entry.overperformDays = 0
-        entry.underperformDays = 0
+        // In-tier: any in-range game resets the streak
+        entry.outperformGames = 0
+        entry.underperformGames = 0
       }
     }
+    entry.lastGp = currentGp
 
     // ── Salary drift within tier (only when no tier change happened) ──────
+    // Pull-only: salary gravitates toward the player's natural position in their
+    // tier based on fantasyScore. No random noise — movement is purely performance-driven.
     if (!tierChanged) {
       const currentTier = getTierByName(entry.tierName)
       if (currentTier) {
@@ -116,10 +119,9 @@ function runDailyUpdate(players, salaryState, boundaries, today) {
             : 0.5
         }
 
-        const drift = seededRandom(pid + today) * 0.10 - 0.05  // ±5% seeded random
-        const pull  = (normalizedPosition - 0.5) * 0.03         // ±1.5% gravity toward natural position
+        const pull = (normalizedPosition - 0.5) * 0.05  // ±2.5% gravity toward natural position
         entry.salary = clamp(
-          entry.salary * (1 + drift + pull),
+          entry.salary * (1 + pull),
           currentTier.floor,
           currentTier.ceiling,
         )

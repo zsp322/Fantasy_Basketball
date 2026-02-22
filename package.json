@@ -1,7 +1,7 @@
 {
   "name": "fantasy-basketball",
   "private": true,
-  "version": "1.3.6",
+  "version": "1.4.2",
   "type": "module",
   "scripts": {
     "dev": "vite",

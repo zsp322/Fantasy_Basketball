@@ -10,6 +10,56 @@ import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerShortName } from '../data/playerNames'
 import { getTierBorderClass } from '../utils/tiers'
+import { OFFENSE_SCHEMES, DEFENSE_SCHEMES, loadSchemes, saveSchemes } from '../data/gameSchemes'
+
+function SchemePickerPanel({ schemes, onChange }) {
+  const { lang } = useSettings()
+  return (
+    <div className="bg-black/75 backdrop-blur-sm border border-gray-700/60 rounded-xl p-3">
+      <div className="text-orange-400 font-bold mb-2 tracking-wide uppercase" style={{ fontSize: 10 }}>
+        {t(T.schemes.title, lang)}
+      </div>
+
+      {/* Offense row */}
+      <div className="text-gray-500 mb-1" style={{ fontSize: 9 }}>{t(T.schemes.offense, lang)}</div>
+      <div className="flex gap-1 mb-2">
+        {Object.keys(OFFENSE_SCHEMES).map(id => (
+          <button
+            key={id}
+            onClick={() => onChange({ ...schemes, offense: id })}
+            className="flex-1 rounded font-bold transition-colors"
+            style={{
+              fontSize: 9, padding: '2px 0',
+              background: schemes.offense === id ? '#f97316' : '#1f2937',
+              color: schemes.offense === id ? '#000' : '#9ca3af',
+            }}
+          >
+            {t(T.schemes.short[id], lang)}
+          </button>
+        ))}
+      </div>
+
+      {/* Defense row */}
+      <div className="text-gray-500 mb-1" style={{ fontSize: 9 }}>{t(T.schemes.defense, lang)}</div>
+      <div className="flex gap-1">
+        {Object.keys(DEFENSE_SCHEMES).map(id => (
+          <button
+            key={id}
+            onClick={() => onChange({ ...schemes, defense: id })}
+            className="flex-1 rounded font-bold transition-colors"
+            style={{
+              fontSize: 9, padding: '2px 0',
+              background: schemes.defense === id ? '#3b82f6' : '#1f2937',
+              color: schemes.defense === id ? '#000' : '#9ca3af',
+            }}
+          >
+            {t(T.schemes.short[id], lang)}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 function BenchChip({ player, onDragStart }) {
   const { lang } = useSettings()
@@ -68,6 +118,12 @@ export default function MyTeam({ team, salaryMap = {} }) {
   const [drawer, setDrawer] = useState(null)
   const [hoverState, setHoverState] = useState(null) // { player, rect }
   const [dragOverPos, setDragOverPos] = useState(null) // slot pos or 'bench' or null
+  const [schemes, setSchemes] = useState(() => loadSchemes())
+
+  function handleSchemeChange(newSchemes) {
+    setSchemes(newSchemes)
+    saveSchemes(newSchemes)
+  }
 
   function handleDragStart(fromPos, player, e) {
     e.dataTransfer.effectAllowed = 'move'
@@ -169,6 +225,9 @@ export default function MyTeam({ team, salaryMap = {} }) {
             {t(T.myTeam.starterCount, lang, starterCount, roster.length)}
           </div>
         </div>
+
+        {/* Scheme picker */}
+        <SchemePickerPanel schemes={schemes} onChange={handleSchemeChange} />
       </div>
 
       {/* ── Top-right: hard reset button (DEV only) ── */}

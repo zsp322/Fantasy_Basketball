@@ -4,7 +4,7 @@ import { calcFantasyScore, calcOffenseRating, calcDefenseRating, calcUsagePosses
 import { assignTiers, computeTierBoundaries } from '../utils/tiers'
 import { ROOKIE_IDS } from '../data/rookiePlayers'
 
-const CACHE_KEY = 'fbball_players_cache_v7' // bumped for pf field + new ATK/DEF formulas
+const CACHE_KEY = 'fbball_players_cache_v8' // bumped: dynamic season ID (was hardcoded 2025)
 const CACHE_TTL = 1000 * 60 * 60 // 1 hour
 
 export function usePlayers() {

@@ -46,59 +46,20 @@ _(all done — see Done ✅)_
 ## Tech Debt 🔧
 > Refactoring and code quality — no new behavior, just cleaner internals.
 
-~~1. Refactor tier colors into a single source of truth~~ ✅ Done — TIER_COLORS map in tiers.js; npcTeam.js uses getTierByName; Simulate.jsx local duplicate removed.
+1. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
 
-12. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
 
+## Future Work (needs ESPN game log API) 🔮
+
+1. **Per-game salary reaction** — Currently salary drift uses season averages (`player.avg`), so a 40-pt game only nudges the average slightly. To make salaries react to last night's performance, use the ESPN game log API:
+   `GET /apis/common/v3/sports/basketball/nba/athletes/{id}/gamelog`
+   Compare last game's line vs. season average → large outperformance (e.g. >1.5× avg pts) → bigger salary spike.
+   The tier-promotion streak already uses `gp` to count games; the game log would feed into the same `outperformGames` counter with actual game-level data instead of slow avg drift.
 
 ## Innovation
 
 
 ## Done ✅
-- [x] Bug: Box score at game end showed empty stats — now computed from ALL plays via computeFinalBoxScore(); subbed-out players show correct stats
-- [x] Bug: Box score missing MIN column — added, approximated as appearances × 1.5 capped at 48
-- [x] Bug: Auto-simulate swapped players out but never back — now continuous; removed permanent blocklist, bench players recover 1.5% energy/play; best available bench player chosen by ATK+DEF × pos-match × energy
-- [x] Bug: 我的队 still in navbar — hardcoded zh string in Navbar.jsx fixed to 我的球队
-- [x] Bug: Reset button showing in production — now DEV only (hard reset); soft reset removed entirely
-- [x] Bug: Player names in simulate play-by-play didn't respect language — now uses Chinese names in zh descriptions via getPlayerShortName
-- [x] Bug: MyTeam SwapDrawer position modal hardcoded English — all strings now use i18n (position label, current player, remove btn, bench labels)
-- [x] Tech Debt: Consolidated all BenchSwapPanel + pause/resume inline zh/en strings into i18n.js
-- [x] Feature: Hover popup (PlayerStatsPopup) on FoundationalPick + TeamReveal init screens
-- [x] Bug: Quarter scoreboard showed all 4 quarters pre-computed from game start — now shows only completed quarters + live current quarter
-- [x] Bug: B tier color (cyan) too similar to A tier (blue) — changed to teal
-- [x] Bug: MyTeam hover popup ignored language setting — name and all stat labels now respect lang
-- [x] Bug: SwapDrawer bench list not sorted by ability — now sorted by effective ATK+DEF with mismatch penalty applied; mismatch badge shown
-- [x] Bug: Language settings incorrect on team init screen
-- [x] Tell users what the initialization team roster includes (+7 auto-assigned players note)
-- [x] Initialize market with more well-known players (v1.0.1)
-- [x] Foundation player pick: exclude S+ players, show 5 random S/S- for user to pick one
-- [x] Dev hard reset button (clears all localStorage, only visible in dev)
-- [x] Bug: Team init assigns players to wrong positions (e.g. AD to PG) — fixed via resolvePosition + resolveEligiblePositions using ESPN height data
-- [x] Bug: Player card border color incorrect — root cause was non-standard ESPN position strings; fixed alongside position normalization
-- [x] Bug: Hover tooltip on NPC team missing player name — added name header to StatTooltip
-- [x] Default simulate speed to Slow
-- [x] In My Team page, lineup cards 25% bigger and bench strip 20% taller
-- [x] Team init animation — cards reveal one by one with tier-glow borders + Shuffle button to regenerate auto picks
-- [x] Player position precision: map ESPN abbreviations (G, F, G/F, PF/C, etc.) to exact slots using height; multi-position players can fill any eligible slot without penalty
-- [x] Salary rescaled to real NBA scale — S+ = $70M, proportional down to F = $0.8M; cache bumped to v5
-- [x] Win reward — beating the NPC team grants $5M cash, shown as a green banner on the simulate page
-- [x] Bug: Win reward cash not applied — addCash used stale closure state; fixed with functional setState form
-- [x] Feature: Sell player from My Team — sell penalty changed to 90% refund via dropPlayer
-- [x] Bug: Version guard clears storage on every version bump — now only clears for users below v1.0.9; future upgrades preserve data
-- [x] Bug: Fouls missing from simulate box score and live stats — now tracked when defender commits a shooting foul (FT trips)
-- [x] Bug: Simulation swaps persisted to My Team lineup — sim now uses local-only starters state (simStartersMap), My Team lineup unchanged after game
-- [x] Small: Renamed NPC team short name to "2015-16 Warriors"
-- [x] Small: Removed Tournaments/League from Navbar
-- [x] Small: SwapDrawer current player now shows tier badge inline + ATK/DEF instead of raw PTS/REB/AST
-- [x] Small: Player names now use full first+last name in English (cards, tooltips, play-by-play)
-- [x] UI: Quarter/time labels in play log barely visible in dark mode — bumped to text-gray-400
-- [x] UI: NPC team logo smaller than My Team badge — both now 40×40; NPC image 38×38
-- [x] UI: Position text hard to read in dark mode — text-gray-600/500 → text-gray-400 across MyTeam, SwapDrawer, Market, Simulate box score & BenchSwapPanel, PlayerSlotCard empty slot
-- [x] Small: Sell penalty changed from 80% → 90% refund
-- [x] Small: Assist algorithm now weights by player avg assists + 1.5× PG bonus (both simulateGame + resumeSimulation)
-- [x] Small: Shot attacker selection now weights by Usage Possessions (FGA + 0.44×FTA + TO) × efficiency × energy — high-usage players get the ball more realistically; cache bumped to v6
-- [x] Small: Drag-and-drop swap in My Team — drag bench chip → starter slot (assign), starter → starter slot (swap), starter → bench strip (remove from lineup); purple glow on drop targets
-- [x] Feature: Slot Machine (抽卡) — 6 hardcoded 2025 NBA rookies (Flagg, Harper, Bailey, Edgecombe, Johnson, Maluach); $5M per spin; 3D card flip reveal; rookie contracts locked (no sell); excluded from market + init pool; /spin route + nav link
 
 ---
 
