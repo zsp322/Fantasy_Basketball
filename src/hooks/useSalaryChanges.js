@@ -56,6 +56,17 @@ function runDailyUpdate(players, salaryState, boundaries, today) {
     const entry = { ...newState[pid] }
     if (entry.lastUpdatedDate === today) continue   // already ran today
 
+    // ── Sync tier with current assignTiers result ─────────────────────────
+    // assignTiers may have reclassified this player (e.g. after a season change
+    // or significant avg shift). Keep salary valid by clamping to new tier range.
+    if (entry.tierName !== player.tier.name) {
+      const syncedTier = player.tier
+      entry.salary = clamp(entry.salary, syncedTier.floor, syncedTier.ceiling)
+      entry.tierName = syncedTier.name
+      entry.outperformGames = 0
+      entry.underperformGames = 0
+    }
+
     const prevSalary = entry.salary
     const tier = getTierByName(entry.tierName) ?? player.tier
     const tierIdx = getTierIndex(tier.name)
