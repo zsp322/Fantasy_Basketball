@@ -63,7 +63,7 @@ export default function PlayerStatsPopup({ player, rect }) {
               {getPlayerName(player, lang)}
             </div>
             <div className="text-gray-400 text-xs mt-0.5">
-              {avg?.teamAbbr ?? '—'} · {player.position || '—'}
+              {[avg?.teamAbbr, player.position || '—'].filter(Boolean).join(' · ')}
             </div>
             <div className="flex items-center gap-1.5 mt-1">
               <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${player.tier?.color ?? 'bg-gray-500 text-white'}`}>
