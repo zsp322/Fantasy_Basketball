@@ -8,6 +8,7 @@ import { npcStarters, npcBench, NPC_TEAM_NAME, NPC_TEAM_SHORT, NPC_TEAM_LOGO } f
 import { useSettings } from '../contexts/SettingsContext'
 import { T, t } from '../data/i18n'
 import { getPlayerShortName, getPlayerName } from '../data/playerNames'
+import { getTierBorderColor } from '../utils/tiers'
 
 const SPEEDS = [
   { labelKey: 'slow',   ms: 500 },
@@ -19,15 +20,6 @@ const PAUSE_SECONDS = 10
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function getInitials(p) {
   return `${p.first_name?.[0] ?? ''}${p.last_name?.[0] ?? ''}`
-}
-
-function getTierBorder(tierName) {
-  if (!tierName) return '#374151'
-  if (['S+', 'S', 'S-'].includes(tierName)) return '#a855f7'
-  if (['A+', 'A', 'A-'].includes(tierName)) return '#60a5fa'
-  if (['B+', 'B', 'B-'].includes(tierName)) return '#14b8a6'
-  if (['C+', 'C', 'C-'].includes(tierName)) return '#4ade80'
-  return '#6b7280'
 }
 
 // ─── Energy bar ───────────────────────────────────────────────────────────────
@@ -162,7 +154,7 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang, zon
   const [hoverRect, setHoverRect] = useState(null)
   const cardRef = useRef(null)
   const tierName    = player?.tier?.name
-  const borderColor = getTierBorder(tierName)
+  const borderColor = getTierBorderColor(tierName)
   const isGassed    = energyPct != null && energyPct < 30
 
   const eligiblePositions = player.positions ?? [player.position]

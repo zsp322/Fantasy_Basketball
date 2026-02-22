@@ -46,7 +46,7 @@ _(all done — see Done ✅)_
 ## Tech Debt 🔧
 > Refactoring and code quality — no new behavior, just cleaner internals.
 
-1. Refactor tier colors into a single source of truth — currently changing B tier color requires edits in 6+ files (tiers.js, PlayerSlotCard.jsx, MyTeam.jsx, Simulate.jsx, Market.jsx, npcTeam.js). Should be one constant/map.
+~~1. Refactor tier colors into a single source of truth~~ ✅ Done — TIER_COLORS map in tiers.js; npcTeam.js uses getTierByName; Simulate.jsx local duplicate removed.
 
 12. Make sure the local storage are in a state can be move to backend later, also is migration ready state, keep that in your memory
 
