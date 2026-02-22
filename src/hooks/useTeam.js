@@ -21,6 +21,7 @@ const DEFAULT_STATE = {
   initialized: false,   // has the user gone through setup?
   team: [],             // array of player objects
   cash: STARTING_CASH,  // $M remaining to spend
+  pendingRookie: null,  // rookie drawn but not yet signed/passed — persists across tab switches
 }
 
 export function useTeam() {
@@ -40,6 +41,7 @@ export function useTeam() {
       initialized: true,
       team: [foundational, ...autoPlayers],
       cash: STARTING_CASH,
+      pendingRookie: null,
     })
   }
 
@@ -63,7 +65,6 @@ export function useTeam() {
     const player = state.team.find(p => p.id === playerId)
     if (!player) return
     if (player.rookieLocked) return // Rookie contracts cannot be sold this season
-    // 10% sell penalty — refund based on live market salary if available, otherwise locked salary
     const baseSalary = liveSalary ?? player.signedSalary ?? player.tier?.salary ?? 0
     const refund = parseFloat((baseSalary * 0.9).toFixed(1))
     persist({
@@ -73,18 +74,40 @@ export function useTeam() {
     })
   }
 
-  function spinForRookie(rookie) {
-    if (state.cash < SPIN_COST) return { ok: false, reason: 'cash' }
+  // Step 1 — pay the spin fee and lock in the drawn rookie.
+  // rookie: the player object already picked before the animation.
+  // free: true skips cash deduction (dev only).
+  function payForSpin(rookie, free = false) {
+    if (rosterFull) return { ok: false, reason: 'roster_full' }
+    if (!free && state.cash < SPIN_COST) return { ok: false, reason: 'cash' }
+    const newCash = free
+      ? state.cash
+      : parseFloat((state.cash - SPIN_COST).toFixed(1))
+    persist({ ...state, cash: newCash, pendingRookie: rookie })
+    return { ok: true }
+  }
+
+  // Step 2 — sign the pending rookie (deducts salary from cap, not cash).
+  // Duplicates allowed — unique id generated per signing.
+  function signRookie() {
+    const rookie = state.pendingRookie
+    if (!rookie) return { ok: false, reason: 'no_pending' }
     if (rosterFull) return { ok: false, reason: 'roster_full' }
     const rookieSalary = rookie.tier?.salary ?? 0
     if (capRemaining < rookieSalary) return { ok: false, reason: 'cap' }
-    const player = { ...rookie, signedSalary: rookieSalary, rookieLocked: true }
-    persist({
-      ...state,
-      team: [...state.team, player],
-      cash: parseFloat((state.cash - SPIN_COST).toFixed(1)),
-    })
+    const player = {
+      ...rookie,
+      id: `${rookie.id}_${Date.now()}`,
+      signedSalary: rookieSalary,
+      rookieLocked: true,
+    }
+    persist({ ...state, team: [...state.team, player], pendingRookie: null })
     return { ok: true }
+  }
+
+  // Pass — discard the pending rookie without signing.
+  function clearPendingRookie() {
+    persist({ ...state, pendingRookie: null })
   }
 
   function addCash(amount) {
@@ -106,10 +129,13 @@ export function useTeam() {
     totalSalary: parseFloat(totalSalary.toFixed(1)),
     capRemaining: parseFloat(capRemaining.toFixed(1)),
     rosterFull,
+    pendingRookie: state.pendingRookie ?? null,
     initTeam,
     buyPlayer,
     dropPlayer,
-    spinForRookie,
+    payForSpin,
+    signRookie,
+    clearPendingRookie,
     addCash,
     resetTeam,
   }

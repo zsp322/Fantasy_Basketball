@@ -27,8 +27,6 @@ _(all done — see Done ✅)_
 
 2. The overall CSS is not good cross screen. For example in my 4k screen. There are a lot of space, but in 2k screen. Some content are seem too big. It fits to mobile for some pages, but my Team screen, the player card is too big
 
-3. ~~Have a slot machine mode which can be used to given some secret player(抽卡) to given out rookie player/Legend players~~ ✅ Done — see Done section
-
 4. Add a coach settings in the team.
 
 5. **Pre-Game Scheme System** — user picks offensive + defensive scheme before simulation starts. Full design in `docs/GAME_DESIGN.md §15`.
