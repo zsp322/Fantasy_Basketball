@@ -196,14 +196,12 @@ function PlayerCardV({ player, energyPct, side, onClick, showSwapHint, lang, zon
           style={{
             width: '100%',
             height: 'clamp(90px, 10vw, 120px)',
-            border: `2px solid ${mismatchSevere ? '#ef4444' : hasMismatch ? '#f59e0b' : borderColor}`,
+            border: `2px solid ${borderColor}`,
             borderRadius: 10,
             overflow: 'hidden',
             background: '#0f172a',
             position: 'relative',
-            boxShadow: mismatchSevere
-              ? `0 0 18px 4px rgba(239,68,68,0.4), 0 4px 16px rgba(0,0,0,0.7)`
-              : `${zoneGlow}0 0 16px 3px ${borderColor}55, 0 4px 16px rgba(0,0,0,0.7)`,
+            boxShadow: `${zoneGlow}0 0 16px 3px ${borderColor}55, 0 4px 16px rgba(0,0,0,0.7)`,
           }}
         >
           {player.headshot ? (
