@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react'
 
-// Version guard — clears stale localStorage for users on versions before 1.0.9.
-// After 1.0.9, we rely on per-feature cache key bumps instead of nuking all data.
+// Version guard — runs targeted localStorage cleanup on version upgrades.
+// Surgical removals only: never wipes team/starters/settings.
 ;(function enforceVersion() {
   const VERSION_KEY = 'fbball_version'
-  const CLEAR_BELOW  = '1.0.9'
   const stored = localStorage.getItem(VERSION_KEY)
 
   function versionBelow(v, min) {
@@ -16,13 +15,10 @@ import { useMemo, useState } from 'react'
     return pa < mpa
   }
 
-  if (versionBelow(stored, CLEAR_BELOW)) {
-    const lang  = localStorage.getItem('fbball_lang')
-    const theme = localStorage.getItem('fbball_theme')
-    localStorage.clear()
-    if (lang)  localStorage.setItem('fbball_lang',  lang)
-    if (theme) localStorage.setItem('fbball_theme', theme)
-    window.location.reload()
+  // v1.4.4: remove stale salary state from old seasons — team data preserved
+  if (versionBelow(stored, '1.4.4')) {
+    ;['fbball_salary_state_v1', 'fbball_salary_state_v2', 'fbball_tier_boundaries']
+      .forEach(k => localStorage.removeItem(k))
   }
 
   localStorage.setItem(VERSION_KEY, __APP_VERSION__)
